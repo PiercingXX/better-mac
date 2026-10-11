@@ -60,9 +60,7 @@ _system_finder_dock() {
     # favorite-apps (Finder is always first)
     run dockutil --remove all --no-restart
     local app
-    for app in /Applications/Waterfox.app /Applications/LibreOffice.app \
-               /System/Applications/Calculator.app /Applications/Obsidian.app \
-               "/Applications/Visual Studio Code.app"; do
+    for app in /Applications/Waterfox.app /Applications/Obsidian.app; do
         if [ "$DRY_RUN" -eq 1 ] || [ -d "$app" ]; then
             run dockutil --add "$app" --no-restart
         fi

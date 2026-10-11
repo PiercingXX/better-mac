@@ -64,8 +64,11 @@ _wm_piercing_dots() {
 _wm_defaults() {
     # SketchyBar replaces the menu bar; it still slides down at the top edge
     run defaults write NSGlobalDomain _HIHideMenuBar -bool true
+    # Everything launches from keybinds/Raycast: the Dock auto-hides with a
+    # 1000s reveal delay, so the screen edge never brings it up
     run defaults write com.apple.dock autohide -bool true
-    run defaults write com.apple.dock autohide-delay -float 0
+    run defaults write com.apple.dock autohide-delay -float 1000
+    run defaults write com.apple.dock show-recents -bool false
     # AeroSpace guide: group windows by app in Mission Control, and one Space
     # across all displays ("Displays have separate Spaces" off)
     run defaults write com.apple.dock expose-group-apps -bool true
@@ -76,7 +79,7 @@ _wm_defaults() {
     run defaults write NSGlobalDomain NSAutomaticWindowAnimationsEnabled -bool false
     run killall Dock || true
     run killall SystemUIServer || true
-    ok "Menu bar and Dock auto-hide, Spaces span displays, ctrl+cmd+drag enabled."
+    ok "Menu bar auto-hides, Dock stays hidden, Spaces span displays, ctrl+cmd+drag enabled."
 }
 
 _wm_start() {

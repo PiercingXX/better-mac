@@ -129,8 +129,8 @@ piercing-dots configs, with small macOS fixes applied to a copy:
 Dark mode, 24h clock with weekday, battery %, reduced animations, tap to
 click, natural scroll, flat mouse acceleration, sleep 60 min on power / 30 on
 battery with the screen off at 15, no dimming, Trash auto-empty (30 days, the
-macOS minimum), hot corners off, Dock favorites (Waterfox, LibreOffice,
-Calculator, Obsidian, VS Code), Night Shift 20:00-04:00 at its warmest,
+macOS minimum), hot corners off, Dock holds only Waterfox and Obsidian (and stays hidden,
+see below), Night Shift 20:00-04:00 at its warmest,
 firewall on, Remote Login (SSH) on.
 
 ### `modules/wm.sh`: the Hyprland desktop
@@ -139,6 +139,7 @@ firewall on, Remote Login (SSH) on.
 |---|---|
 | Hyprland | [AeroSpace](https://github.com/nikitabobko/AeroSpace): i3-style tiling, workspaces 1-10 |
 | waybar | [SketchyBar](https://github.com/FelixKratz/SketchyBar), with the macOS menu bar auto-hidden |
+| Dock | hidden for good (1000s reveal delay); launch from keybinds or Raycast, switch with ⌘Tab |
 | Hyprland borders | [JankyBorders](https://github.com/FelixKratz/JankyBorders) |
 | ulauncher / tap Super | Raycast, opened by tapping left Option |
 | hyprpaper | wallpaper `~/Pictures/backgrounds/1346578.jpg` |
