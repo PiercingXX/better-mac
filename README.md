@@ -73,6 +73,7 @@ cd better-mac && git pull && ./better-mac.sh
 
 | Flag | |
 |---|---|
+| `printers [canon\|omezizy\|both]` | set up a USB printer instead of the full install (see below) |
 | `--dry-run` | print every action instead of running it (works on Linux too) |
 | `--no-color` | plain output (`NO_COLOR` also works) |
 | `-h`, `--help` | usage |
@@ -80,6 +81,24 @@ cd better-mac && git pull && ./better-mac.sh
 `PIERCING_DOTS_DIR=/path/to/piercing-dots` or
 `PIERCING_KEYBOARD_DIR=/path/to/piercing-keyboard-layout` use a local
 checkout instead of cloning.
+
+### Printers
+
+Plug the printer in over USB, then:
+
+```bash
+./better-mac.sh printers            # both
+./better-mac.sh printers canon      # Canon D530 -> queue Canon-D530 (default printer)
+./better-mac.sh printers omezizy    # Omezizy / XPrinter XP-420B -> queue Omezizy_Label, 4x6 labels
+```
+
+Same queues and label options as linux-mod's Printers menu. macOS ships CUPS,
+but the drivers come from the vendors: if one isn't installed, the script
+opens the download page and waits. For the Canon get the **UFRII LT Printer
+Driver** for Mac; for the label printer, XPrinter's **Label printer (macOS)**
+driver. If the XPrinter driver is still missing, the label printer falls back
+to the CUPS generic Zebra driver, as on Linux. `CANON_PRINTER_NAME`,
+`OMEZIZY_QUEUE_NAME` and `OMEZIZY_MODEL_NAME` override the defaults.
 
 ## What it does
 
@@ -189,7 +208,8 @@ modules/
 ├── scripts.sh           ~/.scripts with macOS ports, /media link
 ├── keyboard.sh          Piercing Num layout
 ├── system.sh            macOS settings, firewall, SSH
-└── wm.sh                AeroSpace desktop, permissions walkthrough
+├── wm.sh                AeroSpace desktop, permissions walkthrough
+└── printers.sh          Canon D530 + Omezizy label printer (./better-mac.sh printers)
 dots/
 ├── aerospace/           aerospace.toml (hyprland/*.lua translated) + KEYBINDS.md
 ├── sketchybar/          sketchybarrc + plugins (workspaces, app, clock, layout, volume, battery)
@@ -227,4 +247,3 @@ have nothing to port.
 - If windows sit too low or under the bar on the built-in screen, tune
   `gaps.outer.top` per monitor, e.g.
   `gaps.outer.top = [{ monitor.'built-in' = 10 }, 44]`.
-- Not ported yet: the printer setup (Canon D530, Omezizy label printer).

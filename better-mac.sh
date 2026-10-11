@@ -6,6 +6,8 @@
 # Usage:  ./better-mac.sh              everything: shell, dots, apps, keyboard, settings, desktop
 #         ./better-mac.sh --dry-run    print actions instead of executing
 #         ./better-mac.sh --no-color   plain output (NO_COLOR env also works)
+#         ./better-mac.sh printers [canon|omezizy|both]
+#                                      set up a USB printer (plug it in first)
 #
 # A fresh Mac only has Apple's bash 3.2, so this script, lib/ and modules/
 # must not use bash 4+ syntax.
@@ -14,12 +16,18 @@ BETTER_MAC_ROOT="$(cd "$(dirname "$0")" && pwd)"
 export BETTER_MAC_ROOT
 
 DRY_RUN=0
+ACTION="install"
+PRINTER_TARGET="both"
 for arg in "$@"; do
     case "$arg" in
         --dry-run)  DRY_RUN=1 ;;
+        printers)   ACTION="printers" ;;
+        canon|omezizy|both)
+            [ "$ACTION" = "printers" ] || { echo "'$arg' goes after 'printers' (try --help)"; exit 1; }
+            PRINTER_TARGET="$arg" ;;
         --no-color) NO_COLOR=1 ;;
         -h|--help)
-            sed -n '3,8p' "$0" | sed 's/^# \{0,1\}//'
+            sed -n '3,10p' "$0" | sed 's/^# \{0,1\}//'
             exit 0 ;;
         *)
             echo "Unknown option: $arg (try --help)"
@@ -43,7 +51,7 @@ fi
 if [ "$DRY_RUN" -eq 1 ]; then
     say "DRY RUN — nothing will be installed or changed."
 else
-    # Ask for sudo once (shells, pmset, firewall, Remote Login) and keep it alive
+    # Ask for sudo once (shells, pmset, firewall, Remote Login, lpadmin) and keep it alive
     sudo -v || exit 1
     (while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &)
 fi
@@ -61,6 +69,12 @@ for module in "$BETTER_MAC_ROOT"/modules/*.sh; do
     # shellcheck disable=SC1090
     . "$module"
 done
+
+if [ "$ACTION" = "printers" ]; then
+    printers_install "$PRINTER_TARGET"
+    install_summary
+    exit 0
+fi
 
 shell_install
 dots_install
