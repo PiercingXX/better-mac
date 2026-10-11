@@ -105,7 +105,8 @@ piercing-dots configs, with small macOS fixes applied to a copy:
 ### `modules/apps.sh`: apps from step-1.sh
 
 - Waterfox, Discord, Obsidian, GIMP, VS Code, OpenCode, LibreOffice,
-  qBittorrent, GitHub Desktop, ProtonVPN, Synology Drive, Tailscale.
+  qBittorrent, GitHub Desktop, ProtonVPN, Synology Drive, Synology Chat,
+  Tailscale.
 - htop, btop, lnav, mpv, ranger, and macmon (nvtop doesn't support Apple GPUs).
 - piercing-dots configs for btop, htop, mpv, ranger, ncmpcpp, opencode, mpd
   (audio output `osx`) and GIMP 3.2 (`~/Library/Application Support/GIMP/3.2`).
@@ -129,7 +130,8 @@ piercing-dots configs, with small macOS fixes applied to a copy:
 Dark mode, 24h clock with weekday, battery %, reduced animations, tap to
 click, natural scroll, flat mouse acceleration, sleep 60 min on power / 30 on
 battery with the screen off at 15, no dimming, Trash auto-empty (30 days, the
-macOS minimum), hot corners off, Dock holds only Waterfox and Obsidian (and stays hidden,
+macOS minimum), hot corners off, Dock holds your GNOME favorites minus VS Code (Finder,
+Waterfox, LibreOffice, Calculator, Obsidian, Synology Chat; it stays hidden,
 see below), Night Shift 20:00-04:00 at its warmest,
 firewall on, Remote Login (SSH) on.
 
