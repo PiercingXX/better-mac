@@ -24,6 +24,10 @@ cd better-mac
 ./better-mac.sh
 ```
 
+The repo is private, so `git clone` asks for a username and password: use
+`PiercingXX` and a GitHub personal access token (Settings > Developer settings >
+Tokens, `repo` scope) as the password. A fresh Mac has no `gh` to log in with yet.
+
 Run it as your normal user. It asks for your password once (Homebrew,
 login shell, power, firewall, Remote Login) and keeps sudo alive.
 Homebrew is installed if it's missing. Expect 20-40 minutes, mostly downloads.
