@@ -39,17 +39,15 @@ _wm_configs() {
     ok "AeroSpace, SketchyBar, borders and Karabiner configs in place."
 }
 
-# ~/.scripts (notes, server monitor, AI launchers) and wallpapers
+# Wallpapers (~/.scripts is modules/scripts.sh)
 _wm_piercing_dots() {
     if [ "$DRY_RUN" -eq 1 ]; then
-        dry "clone piercing-dots: ~/.scripts, ~/Pictures/backgrounds, set wallpaper"
+        dry "piercing-dots backgrounds -> ~/Pictures/backgrounds, set wallpaper"
         return 0
     fi
     local wall
     ensure_piercing_dots || return 0
-    mkdir -p "$HOME/.scripts" "$HOME/Pictures/backgrounds"
-    cp -R "$PIERCING_DOTS_DIR/resources/.scripts/." "$HOME/.scripts/"
-    chmod -R u+x "$HOME/.scripts"
+    mkdir -p "$HOME/Pictures/backgrounds"
     cp -R "$PIERCING_DOTS_DIR/resources/backgrounds/." "$HOME/Pictures/backgrounds/"
 
     # hyprpaper.conf wallpaper
@@ -58,7 +56,7 @@ _wm_piercing_dots() {
         osascript -e "tell application \"System Events\" to tell every desktop to set picture to POSIX file \"$wall\"" >/dev/null 2>&1 \
             || warn "Wallpaper not set: allow your terminal to control System Events, then rerun."
     fi
-    ok "piercing-dots scripts and wallpapers copied."
+    ok "Wallpapers copied."
 }
 
 _wm_defaults() {

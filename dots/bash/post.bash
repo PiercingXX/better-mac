@@ -13,6 +13,9 @@ if [[ ${iatest:-0} -gt 0 ]]; then
     fi
 fi
 
+# setup-claude-accounts.sh appends this to ~/.bashrc, which better-mac rebuilds
+[ -f "$HOME/.config/claude/shell.bash" ] && . "$HOME/.config/claude/shell.bash"
+
 # Use Homebrew's GNU grep instead of the pinned /usr/bin/grep (BSD)
 alias grep='grep --color=auto'
 
@@ -24,8 +27,8 @@ alias logs='log stream --style compact'
 alias logout='osascript -e "tell application \"System Events\" to log out"'
 alias sd='open -a "Synology Drive Client"'
 
-# Linux desktop launchers and the settings menu have no macOS equivalent
-unalias xx gnome hypr sway i3 bspwm herb awesome dwm qtile qtilex 2>/dev/null
+# Linux desktop launchers have no macOS equivalent (xx, the settings menu, is ported)
+unalias gnome hypr sway i3 bspwm herb awesome dwm qtile qtilex 2>/dev/null
 
 # cp with progress (strace isn't available on macOS)
 cpp() {

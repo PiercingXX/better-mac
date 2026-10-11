@@ -51,6 +51,12 @@ fi
 ensure_brew || { warn "Homebrew install failed."; install_summary; exit 1; }
 trap cleanup_piercing_dots EXIT
 
+# The settings menu's update-piercingXX.sh pulls and reruns this checkout
+if [ "$DRY_RUN" -eq 0 ]; then
+    mkdir -p "$HOME/.config/better-mac"
+    printf '%s\n' "$BETTER_MAC_ROOT" >"$HOME/.config/better-mac/root"
+fi
+
 for module in "$BETTER_MAC_ROOT"/modules/*.sh; do
     # shellcheck disable=SC1090
     . "$module"
@@ -59,9 +65,10 @@ done
 shell_install
 dots_install
 apps_install
+scripts_install
 keyboard_install
 system_install
 wm_install
 
 install_summary
-say "Log out and back in when ready."
+say "Reboot when ready (the /media link and login settings need it)."

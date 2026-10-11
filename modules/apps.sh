@@ -19,19 +19,21 @@ _apps_packages() {
     brew_cask libreoffice qbittorrent github protonvpn synology-drive synology-chat \
         tailscale-app font-symbols-only-nerd-font
     # nvtop doesn't support Apple GPUs; macmon shows GPU/CPU/power instead
-    brew_formula htop btop lnav macmon mpv ranger
+    brew_formula htop btop lnav macmon mpv ranger cava
+    # ~/.scripts: settings menu (gum), Bluetooth, virus scan, backups
+    brew_formula gum blueutil clamav rsync
 }
 
 _apps_configs() {
     if [ "$DRY_RUN" -eq 1 ]; then
-        dry "overlay piercing-dots btop, htop, mpv, ranger, ncmpcpp, opencode -> ~/.config/"
+        dry "overlay piercing-dots btop, htop, mpv, ranger, ncmpcpp, opencode, cava, ollama, docker -> ~/.config/"
         dry "overlay mpd (audio output pulse -> osx) -> ~/.config/mpd/"
         dry "overlay GIMP 3.2 -> ~/Library/Application Support/GIMP/3.2/"
         return 0
     fi
     ensure_piercing_dots || return 0
     local dots="$PIERCING_DOTS_DIR/dots" app stage
-    for app in btop htop mpv ranger ncmpcpp opencode; do
+    for app in btop htop mpv ranger ncmpcpp opencode cava ollama docker; do
         overlay_dir "$dots/$app" "$HOME/.config/$app"
     done
 
@@ -44,7 +46,7 @@ _apps_configs() {
 
     # GIMP keeps its profile under Application Support on macOS
     overlay_dir "$dots/GIMP/3.2" "$HOME/Library/Application Support/GIMP/3.2"
-    ok "btop, htop, mpv, ranger, ncmpcpp, mpd, opencode and GIMP configs in place."
+    ok "btop, htop, mpv, ranger, ncmpcpp, mpd, opencode, cava, ollama, docker and GIMP configs in place."
 }
 
 # Strips AI-vendor Co-authored-by trailers (piercing-dots .githooks/commit-msg)

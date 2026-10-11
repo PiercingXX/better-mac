@@ -12,6 +12,8 @@ system_install() {
     _system_finder_dock
     _system_night_shift
     _system_services
+    # set_boot_beep.sh: the startup chime (Apple Silicon mutes it by default)
+    run sudo nvram StartupMute=%00 || warn "Could not turn on the startup chime."
     run killall Dock || true
     run killall SystemUIServer || true
     ok "macOS settings applied (some take effect after you log out)."

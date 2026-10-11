@@ -15,7 +15,7 @@ Switch layouts with Ctrl-Space or the Globe key.
     ⌥ F                toggle float
     ⌥ ⇧ F              toggle fullscreen
     ⌥ X                toggle split direction
-    ⌥ R                toggle SketchyBar
+    ⌥ R                toggle SketchyBar (and its gap)
     ⌥ ⇧ Y              clipboard history (Raycast)
     ⌥ ⇧ S              Sound settings              (was: pavucontrol)
     ⌥ ⌘ S              System Settings             (was: gnome-control-center)
@@ -51,9 +51,9 @@ Switch layouts with Ctrl-Space or the Globe key.
                        ⌥ ⇧ HJKL join with neighbour
 
 ## Session / audio
-    ⌥ `                lock (display sleep)
+    ⌥ `                lock screen
     ⌥ ⇧ `              suspend
     Ctrl ⌘ ⇧ Backspace shut down               (also Ctrl ⌘ ⇧ K)
     ⌥ O                next audio output
-    ⌥ P                time notification       ⌥ ⇧ P  Calendar      ⌥ ⇧ C  Calculator
+    ⌥ P                time notification       ⌥ ⇧ P  calendar notification      ⌥ ⇧ C  Calculator
     Media/brightness keys work natively.

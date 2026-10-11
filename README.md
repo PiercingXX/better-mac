@@ -45,17 +45,21 @@ and waits for you to press Enter:
 | Raycast welcome window | hotkey **⌥ Space** (tapping left Option sends it) |
 | Keyboard > Text Input > Edit | add **Colemak** and **Piercing Num** (under Others), remove U.S. |
 
-### 4. Log out and back in
+### 4. Reboot
 
 The menu bar auto-hide, Spaces, dark mode and trackpad settings apply after a
-fresh login. AeroSpace, SketchyBar, borders and Karabiner start at login from
+fresh login, and `/media` (see `modules/scripts.sh`) appears after a reboot. AeroSpace, SketchyBar, borders and Karabiner start at login from
 then on.
 
 ### 5. First launches
 
 - `nvim`: plugins install on first launch (`vim.pack`).
 - tmux plugins are already installed; `prefix + I` re-runs TPM.
-- Press **⌥ /** for the keybind sheet.
+- Press **⌥ /** for the keybind sheet, and type `xx` for the settings menu.
+- Allow **Script Editor** under Notifications: the notifiers (time, battery,
+  network, Bluetooth, updates) post through `osascript`, which macOS files
+  under Script Editor. The first lock, wallpaper or screenshot also asks for
+  Automation / Screen Recording permission.
 
 ### Re-running
 
@@ -108,10 +112,32 @@ piercing-dots configs, with small macOS fixes applied to a copy:
   qBittorrent, GitHub Desktop, ProtonVPN, Synology Drive, Synology Chat,
   Tailscale.
 - htop, btop, lnav, mpv, ranger, and macmon (nvtop doesn't support Apple GPUs).
-- piercing-dots configs for btop, htop, mpv, ranger, ncmpcpp, opencode, mpd
-  (audio output `osx`) and GIMP 3.2 (`~/Library/Application Support/GIMP/3.2`).
+- cava, plus gum, blueutil, clamav and rsync for the scripts below.
+- piercing-dots configs for btop, htop, mpv, ranger, ncmpcpp, opencode, cava,
+  ollama (model files), docker (compose files), mpd (audio output `osx`) and
+  GIMP 3.2 (`~/Library/Application Support/GIMP/3.2`).
 - The piercing-dots commit-msg hook, pointed at GNU sed because git runs hooks
   from GUI apps without your shell's PATH.
+
+### `modules/scripts.sh`: ~/.scripts
+
+Your piercing-dots `.scripts`, minus the Linux-only ones listed in
+`dots/scripts/macos-drop.txt` (session launchers, Raycast-covered helpers,
+volume/brightness, workspace-notify, skippy-desk, update-mirrors), with the
+macOS ports in `dots/scripts/` laid over them at the same paths:
+
+| | macOS version |
+|---|---|
+| `xx` settings menu | same gum menu; updates use `brew`, `mas` and `softwareupdate`; Wi-Fi via `networksetup`, Bluetooth via `blueutil`, audio via `SwitchAudioSource`, wallpaper via System Events, users via `sysadminctl`/`dscl`, virus scan via Homebrew ClamAV, software manager over brew formulae + casks, "Update PiercingXX" pulls and reruns this checkout |
+| notifiers | `notify-time`/`notify-calendar` (⌥P / ⌥⇧P), plus battery, network, Bluetooth and update notifiers started at login by AeroSpace |
+| `toggle-topbar.sh` | ⌥R hides SketchyBar and closes its gap; the state survives logins |
+| `wm-lock.sh`, `wm-screenshot.sh` | lock screen; `screencapture` to `~/Pictures/Screenshots` + clipboard (unbound: ⌘⇧3/4/5 still work) |
+| `setup-claude-accounts.sh`, `github-clone-all.sh` | Keychain-aware status; clones into `~/GitHub` |
+| launchers, notes, `yazi-open-nvim-smart` | unchanged |
+
+`/etc/synthetic.conf` gets `media → Volumes`, so `/media/Archived-Storage/...`
+in your note scripts and nvim config resolves to a share mounted as
+`Archived-Storage`, with no path changes.
 
 ### `modules/keyboard.sh`: Colemak + Piercing Num
 
@@ -133,7 +159,7 @@ battery with the screen off at 15, no dimming, Trash auto-empty (30 days, the
 macOS minimum), hot corners off, Dock holds your GNOME favorites minus VS Code (Finder,
 Waterfox, LibreOffice, Calculator, Obsidian, Synology Chat; it stays hidden,
 see below), Night Shift 20:00-04:00 at its warmest,
-firewall on, Remote Login (SSH) on.
+firewall on, Remote Login (SSH) on, startup chime on (`set_boot_beep.sh`).
 
 ### `modules/wm.sh`: the Hyprland desktop
 
@@ -160,6 +186,7 @@ modules/
 ├── shell.sh             bash 5, GNU tools, .bashrc, starship, fastfetch
 ├── dots.sh              kitty, nvim, tmux, yazi
 ├── apps.sh              apps, their configs, git hook
+├── scripts.sh           ~/.scripts with macOS ports, /media link
 ├── keyboard.sh          Piercing Num layout
 ├── system.sh            macOS settings, firewall, SSH
 └── wm.sh                AeroSpace desktop, permissions walkthrough
@@ -171,7 +198,8 @@ dots/
 ├── bash/                pre.bash, post.bash, bash_profile
 ├── kitty/macos.conf
 ├── tmux/macos.sed
-└── yazi/*.sed
+├── yazi/*.sed
+└── scripts/             macOS ports of ~/.scripts + macos-drop.txt
 ```
 
 ## Not possible on macOS
@@ -184,9 +212,13 @@ have nothing to port.
 
 ## Notes
 
-- `open_daily_note.sh`, `inventory.sh` and the nvim todo/daily-note config
-  point at `/media/Archived-Storage/...`; on a Mac that share mounts under
-  `/Volumes/...`.
+- Mount your `Archived-Storage` share (Finder > Go > Connect to Server) for the
+  note, inventory and nvim todo paths under `/media/Archived-Storage`.
+- cava listens to the microphone on macOS; add a loopback device such as
+  BlackHole to visualize system audio.
+- Only a few of the 31 `dots/` folders are read by anything on macOS; the
+  rest (sway, i3, rofi, waybar, eww, polybar, ...) configure Linux-only programs
+  and aren't installed.
 - Reduce Motion and Remote Login need Full Disk Access for your terminal; if
   either is refused, the summary says where to turn it on by hand.
 - The tmux-thumbs plugin compiles with Rust the first time you use it.
@@ -195,5 +227,4 @@ have nothing to port.
 - If windows sit too low or under the bar on the built-in screen, tune
   `gaps.outer.top` per monitor, e.g.
   `gaps.outer.top = [{ monitor.'built-in' = 10 }, 44]`.
-- Not ported yet: the `xx` settings menu and the printer setup (Canon D530,
-  Omezizy label printer).
+- Not ported yet: the printer setup (Canon D530, Omezizy label printer).

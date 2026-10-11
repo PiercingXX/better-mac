@@ -11,6 +11,16 @@
 # window swallowing, super+mouse drag (ctrl+cmd+drag moves windows instead).
 
 config-version = 2
+
+# execs.lua autostart: bar state, notifiers, update check (the scripts guard
+# against running twice if AeroSpace restarts)
+after-startup-command = [
+    'exec-and-forget ~/.scripts/Control-Scripts/toggle-topbar.sh --startup',
+    'exec-and-forget ~/.scripts/Control-Scripts/battery-notify.sh',
+    'exec-and-forget ~/.scripts/Control-Scripts/network-notify.sh',
+    'exec-and-forget ~/.scripts/Control-Scripts/bluetooth-notify.sh',
+    'exec-and-forget sleep 20 && ~/.scripts/Control-Scripts/update-notify.sh',
+]
 start-at-login = true
 auto-reload-config = true
 
@@ -73,7 +83,7 @@ on-window-detected = [
     alt-cmd-s = 'exec-and-forget open -b com.apple.systempreferences'
     alt-shift-f = 'fullscreen'
     alt-f = 'layout floating tiling'
-    alt-r = 'exec-and-forget sketchybar --bar hidden=toggle'
+    alt-r = 'exec-and-forget ~/.scripts/Control-Scripts/toggle-topbar.sh'
     alt-x = 'layout tiles horizontal vertical'
     alt-shift-y = 'exec-and-forget open raycast://extensions/raycast/clipboard-history/clipboard-history'
     alt-slash = 'exec-and-forget kitty -1 -d ~ less ~/.config/aerospace/KEYBINDS.md'
@@ -111,15 +121,15 @@ on-window-detected = [
     alt-cmd-a = 'exec-and-forget kitty -1 -d ~ ~/.scripts/Control-Scripts/launch-ollama-remote.sh --gemma'
 
     # ---- Session ----
-    alt-backtick = 'exec-and-forget pmset displaysleepnow'
+    alt-backtick = 'exec-and-forget ~/.scripts/Control-Scripts/wm-lock.sh'
     alt-shift-backtick = 'exec-and-forget pmset sleepnow'
     ctrl-cmd-shift-backspace = '''exec-and-forget osascript -e 'tell application "System Events" to shut down' '''
     ctrl-cmd-shift-forwardDelete = '''exec-and-forget osascript -e 'tell application "System Events" to shut down' '''
 
     # ---- Audio output / time / calendar / calculator ----
-    alt-o = 'exec-and-forget SwitchAudioSource -n -t output'
-    alt-p = '''exec-and-forget osascript -e "display notification \"$(date '+%H:%M  %A %B %d')\" with title \"Time\""'''
-    alt-shift-p = 'exec-and-forget open -a Calendar'
+    alt-o = 'exec-and-forget ~/.scripts/PiercingXX-Settings-Menu/audio-input-manager.sh --toggle-output'
+    alt-p = 'exec-and-forget ~/.scripts/Control-Scripts/notify-time.sh'
+    alt-shift-p = 'exec-and-forget ~/.scripts/Control-Scripts/notify-calendar.sh'
     alt-shift-c = 'exec-and-forget open -a Calculator'
 
     # ---- Focus (vim keys + arrows), crossing monitors like Hyprland ----

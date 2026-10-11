@@ -1,0 +1,35 @@
+# GitHub.com/PiercingXX - better-mac
+# piercing-dots ~/.scripts files with no macOS meaning; not installed on the Mac.
+# Paths are relative to resources/.scripts. One per line; # starts a comment.
+
+# Linux session launchers
+Control-Scripts/start-awesome
+Control-Scripts/start-bspwm
+Control-Scripts/start-dwm
+Control-Scripts/start-dwm-session.sh
+Control-Scripts/start-herbst
+Control-Scripts/start-i3
+Control-Scripts/start-qtile
+Control-Scripts/start-session.sh
+Control-Scripts/start-sway
+Control-Scripts/wm-logout-to-tty.sh
+
+# Covered by Raycast or macOS itself
+Control-Scripts/wm-app-launcher.sh
+Control-Scripts/wm-clipboard-daemon.sh
+Control-Scripts/wm-clipboard-menu.sh
+Control-Scripts/wm-emoji-picker.sh
+Control-Scripts/wm-toggle-touchpad.sh
+Control-Scripts/hyprsunset-scheduler.sh
+
+# Linux keybind sheet (better-mac has ~/.config/aerospace/KEYBINDS.md)
+Control-Scripts/keybinds.html
+
+# SketchyBar shows workspaces; media keys/brightness are native; skippy-remote is a GTK app
+Control-Scripts/workspace-notify.sh
+Control-Scripts/volume.sh
+Control-Scripts/brightness.sh
+Control-Scripts/skippy-desk.sh
+
+# Arch mirror ranking
+PiercingXX-Settings-Menu/update-mirrors.sh
