@@ -1,0 +1,84 @@
+#!/bin/bash
+# GitHub.com/PiercingXX
+# piercing-dots waybar (dots/waybar), rebuilt for SketchyBar + AeroSpace.
+# Left: workspaces + focused app. Right: clock, layout, volume, battery, power.
+# The clock sits on the right because the center is under the MacBook notch.
+
+PLUGIN_DIR="$CONFIG_DIR/plugins"
+
+WHITE=0xffffffff
+TEXT=0xfff2f2f2
+PILL=0xff2c2c2c
+MONO="JetBrainsMono Nerd Font"
+SANS="Fira Sans"
+
+# Transparent bar, like window#waybar { background-color: transparent }
+sketchybar --bar position=top height=34 color=0x00000000 sticky=on \
+                 padding_left=10 padding_right=10
+
+sketchybar --default icon.font="$MONO:Bold:16.0" \
+                     label.font="$SANS:SemiBold:16.0" \
+                     icon.color=$WHITE label.color=$TEXT \
+                     padding_left=4 padding_right=4 \
+                     icon.padding_left=4 icon.padding_right=4 \
+                     label.padding_left=4 label.padding_right=4
+
+# ---- Workspaces: shown when occupied or focused, focused gets the pill ----
+sketchybar --add event aerospace_workspace_change
+
+for sid in 1 2 3 4 5 6 7 8 9 10; do
+    sketchybar --add item "space.$sid" left \
+               --set "space.$sid" drawing=off \
+                     icon.drawing=off \
+                     label="$sid" \
+                     label.font="$MONO:Bold:16.0" \
+                     label.color=$WHITE \
+                     label.padding_left=12 label.padding_right=12 \
+                     background.color=$PILL \
+                     background.corner_radius=15 \
+                     background.height=26 \
+                     background.drawing=off \
+                     click_script="aerospace workspace $sid"
+done
+
+# One hidden item refreshes all ten pills per event
+sketchybar --add item workspaces left \
+           --set workspaces drawing=off updates=on script="$PLUGIN_DIR/aerospace.sh" \
+           --subscribe workspaces aerospace_workspace_change front_app_switched \
+                                  display_change system_woke
+
+# ---- Focused app (hyprland/window) ----
+sketchybar --add item front_app left \
+           --set front_app icon.drawing=off padding_left=12 \
+                 script="$PLUGIN_DIR/front_app.sh" \
+           --subscribe front_app front_app_switched
+
+# ---- Right side, added right-to-left ----
+sketchybar --add item power right \
+           --set power icon="" icon.font="$MONO:Bold:18.0" label.drawing=off \
+                 padding_right=10 \
+                 click_script="osascript -e 'tell application \"loginwindow\" to «event aevtrsdn»'"
+
+sketchybar --add item battery right \
+           --set battery update_freq=120 script="$PLUGIN_DIR/battery.sh" \
+           --subscribe battery system_woke power_source_change
+
+sketchybar --add item volume right \
+           --set volume script="$PLUGIN_DIR/volume.sh" \
+                 click_script="open 'x-apple.systempreferences:com.apple.Sound-Settings.extension'" \
+           --subscribe volume volume_change
+
+# Active layout (waybar #language); its script also keeps AeroSpace's keys in sync
+sketchybar --add event input_change AppleSelectedInputSourcesChangedNotification \
+           --add item keyboard right \
+           --set keyboard icon="󰌌" script="$PLUGIN_DIR/keyboard.sh" \
+           --subscribe keyboard input_change system_woke
+
+sketchybar --add item clock right \
+           --set clock update_freq=10 icon.drawing=off \
+                 label.font="$MONO:Bold:18.0" label.color=$WHITE \
+                 padding_right=12 \
+                 script="$PLUGIN_DIR/clock.sh" \
+                 click_script="open -a Calendar"
+
+sketchybar --update

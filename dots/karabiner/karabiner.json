@@ -1,0 +1,103 @@
+{
+    "global": {
+        "show_in_menu_bar": false
+    },
+    "profiles": [
+        {
+            "name": "PiercingXX",
+            "selected": true,
+            "virtual_hid_keyboard": {
+                "keyboard_type_v2": "ansi"
+            },
+            "complex_modifications": {
+                "rules": [
+                    {
+                        "description": "Tap left Option alone: Option+Space (Raycast), like tapping Super for the launcher",
+                        "manipulators": [
+                            {
+                                "type": "basic",
+                                "from": {
+                                    "key_code": "left_option",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [{ "key_code": "left_option", "lazy": true }],
+                                "to_if_alone": [
+                                    { "key_code": "spacebar", "modifiers": ["left_option"] }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "description": "Caps Lock = Backspace (every layout; kb_options caps:backspace)",
+                        "manipulators": [
+                            {
+                                "type": "basic",
+                                "from": {
+                                    "key_code": "caps_lock",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [{ "key_code": "delete_or_backspace" }]
+                            }
+                        ]
+                    },
+                    {
+                        "description": "Piercing Num: Backspace key = Forward Delete",
+                        "manipulators": [
+                            {
+                                "type": "basic",
+                                "from": {
+                                    "key_code": "delete_or_backspace",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [{ "key_code": "delete_forward" }],
+                                "conditions": [
+                                    {
+                                        "type": "input_source_if",
+                                        "input_sources": [{ "input_source_id": "[Pp]iercing" }]
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "description": "Piercing Num: Right Option + the keys that type h/j/k/l = arrows",
+                        "manipulators": [
+                            {
+                                "type": "basic",
+                                "from": { "key_code": "h", "modifiers": { "mandatory": ["right_option"] } },
+                                "to": [{ "key_code": "left_arrow" }],
+                                "conditions": [
+                                    { "type": "input_source_if", "input_sources": [{ "input_source_id": "[Pp]iercing" }] }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "from": { "key_code": "period", "modifiers": { "mandatory": ["right_option"] } },
+                                "to": [{ "key_code": "down_arrow" }],
+                                "conditions": [
+                                    { "type": "input_source_if", "input_sources": [{ "input_source_id": "[Pp]iercing" }] }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "from": { "key_code": "n", "modifiers": { "mandatory": ["right_option"] } },
+                                "to": [{ "key_code": "up_arrow" }],
+                                "conditions": [
+                                    { "type": "input_source_if", "input_sources": [{ "input_source_id": "[Pp]iercing" }] }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "from": { "key_code": "u", "modifiers": { "mandatory": ["right_option"] } },
+                                "to": [{ "key_code": "right_arrow" }],
+                                "conditions": [
+                                    { "type": "input_source_if", "input_sources": [{ "input_source_id": "[Pp]iercing" }] }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+}

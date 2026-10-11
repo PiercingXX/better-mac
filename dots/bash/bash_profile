@@ -1,0 +1,4 @@
+# GitHub.com/PiercingXX - better-mac
+# macOS terminals (and tmux) start login shells, which read this file and
+# not ~/.bashrc. Keep everything in ~/.bashrc.
+[ -f "$HOME/.bashrc" ] && . "$HOME/.bashrc"

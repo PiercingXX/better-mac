@@ -1,0 +1,201 @@
+# GitHub.com/PiercingXX
+# piercing-dots Hyprland config (dots/hypr/hyprland/*.lua), translated for AeroSpace.
+#
+# Modifier map, by physical key position on a Mac keyboard:
+#   Hyprland SUPER -> alt   Option sits where Super does on a PC keyboard, and
+#                           this keeps Cmd free for copy/paste/undo/quit.
+#   Hyprland ALT   -> cmd
+#   Hyprland CTRL  -> ctrl
+#
+# No macOS equivalent: animations, blur, inactive_opacity, dwindle auto-split,
+# window swallowing, super+mouse drag (ctrl+cmd+drag moves windows instead).
+
+config-version = 2
+start-at-login = true
+auto-reload-config = true
+
+enable-normalization-flatten-containers = true
+enable-normalization-opposite-orientation-for-nested-containers = true
+accordion-padding = 30
+default-root-container-layout = 'tiles'
+default-root-container-orientation = 'auto'
+
+# input.follow_mouse = 1
+focus-follows-mouse.enabled = true
+on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
+
+# Like waybar's hyprland/workspaces: only workspaces in use exist
+persistent-workspaces = []
+
+# Hyprland binds follow letters in the active layout; AeroSpace binds physical
+# keys. SketchyBar's keyboard plugin rewrites this block whenever the input
+# source changes (Colemak / Piercing Num), so binds keep following the letters.
+# >>> keyboard layout (managed by sketchybar/plugins/keyboard.sh) >>>
+key-mapping.preset = 'colemak'
+# <<< keyboard layout <<<
+
+# general.gaps_in = 8, gaps_out = 10. Top = 10 + SketchyBar height (34).
+gaps.inner.horizontal = 8
+gaps.inner.vertical = 8
+gaps.outer.left = 10
+gaps.outer.bottom = 10
+gaps.outer.right = 10
+gaps.outer.top = 44
+
+# Keep the SketchyBar workspace pills in sync
+on-focus-changed = ['exec-and-forget sketchybar --trigger aerospace_workspace_change']
+exec-on-workspace-change = ['/bin/bash', '-c', 'sketchybar --trigger aerospace_workspace_change']
+
+# rules.lua window rules (file dialogs float automatically in AeroSpace)
+on-window-detected = [
+    { if = 'test %{app-bundle-id} = com.apple.calculator', run = 'layout floating' },
+    { if = 'test %{app-bundle-id} = com.apple.systempreferences', run = 'layout floating' },
+    { if = 'test %{app-bundle-id} = com.valvesoftware.steam', run = 'layout floating' },
+    { if = 'test %{window-title} ~= picture.in.picture', run = 'layout floating' },
+]
+
+[exec.env-vars]
+    PATH = '${HOME}/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:${PATH}'
+
+# rules.lua workspace rules (falls back to the main display when unplugged)
+[workspace-to-monitor-force-assignment]
+    1 = ['ultrawide', 'main']
+    2 = ['ultrawide', 'main']
+    3 = ['ultrawide', 'main']
+    4 = ['sdqhd', 'main']
+    5 = ['sdqhd', 'main']
+
+[mode.main.binding]
+    # ---- Essentials ----
+    alt-q = 'close'
+    alt-shift-q = '''exec-and-forget kill -9 "$(aerospace list-windows --focused --format '%{app-pid}')"'''
+    alt-shift-s = 'exec-and-forget open "x-apple.systempreferences:com.apple.Sound-Settings.extension"'
+    alt-cmd-s = 'exec-and-forget open -b com.apple.systempreferences'
+    alt-shift-f = 'fullscreen'
+    alt-f = 'layout floating tiling'
+    alt-r = 'exec-and-forget sketchybar --bar hidden=toggle'
+    alt-x = 'layout tiles horizontal vertical'
+    alt-shift-y = 'exec-and-forget open raycast://extensions/raycast/clipboard-history/clipboard-history'
+    alt-slash = 'exec-and-forget kitty -1 -d ~ less ~/.config/aerospace/KEYBINDS.md'
+
+    # ---- Notes and to-do lists ----
+    alt-n = 'exec-and-forget kitty -1 -d ~ ~/.scripts/Note-Scripts/open_daily_note.sh --split'
+    alt-shift-n = 'exec-and-forget kitty -1 -d ~ ~/.scripts/Note-Scripts/open_daily_note.sh --view'
+    alt-cmd-n = 'exec-and-forget kitty -1 -d ~ ~/.scripts/Note-Scripts/open_daily_note.sh --todo'
+    alt-cmd-shift-n = 'exec-and-forget kitty -1 -d ~ ~/.scripts/Note-Scripts/open_daily_note.sh --directory'
+    alt-i = 'exec-and-forget kitty -1 -d ~ ~/.scripts/Note-Scripts/inventory.sh'
+
+    # ---- Server monitor ----
+    alt-m = 'exec-and-forget kitty -d ~ -o allow_remote_control=yes -o close_on_child_death=yes ~/.scripts/Control-Scripts/launch-server-monitor.sh -monitor'
+    alt-shift-m = 'exec-and-forget kitty -d ~ -o allow_remote_control=yes -o close_on_child_death=yes ~/.scripts/Control-Scripts/launch-server-monitor.sh -remote'
+
+    # ---- Applications ----
+    alt-w = 'exec-and-forget kitty -1 -d ~'
+    alt-t = 'exec-and-forget kitty -1 -d ~ tmux'
+    alt-z = 'exec-and-forget kitty -1 -d ~ yazi'
+    alt-shift-z = 'exec-and-forget open ~'
+    alt-c = 'exec-and-forget open -a Waterfox'
+    alt-d = 'exec-and-forget open -a Discord'
+    alt-v = 'exec-and-forget kitty -1 -d ~ nvim'
+    alt-shift-v = 'exec-and-forget open -a OpenCode'
+    alt-cmd-v = 'exec-and-forget open -a "Visual Studio Code"'
+    alt-b = 'exec-and-forget open -a Obsidian'
+    alt-g = 'exec-and-forget open -a GIMP'
+    ctrl-cmd-backspace = 'exec-and-forget open -a "Activity Monitor"'
+    ctrl-cmd-forwardDelete = 'exec-and-forget open -a "Activity Monitor"'  # Piercing: Backspace key is Delete
+    ctrl-cmd-shift-k = '''exec-and-forget osascript -e 'tell application "System Events" to shut down' '''
+
+    # ---- Self-hosted AI ----
+    alt-a = 'exec-and-forget kitty -1 -d ~ ~/.scripts/Control-Scripts/launch-skippy-remote.sh'
+    alt-shift-a = 'exec-and-forget kitty -1 -d ~ ~/.scripts/Control-Scripts/launch-ollama-remote.sh --skippy'
+    alt-cmd-a = 'exec-and-forget kitty -1 -d ~ ~/.scripts/Control-Scripts/launch-ollama-remote.sh --gemma'
+
+    # ---- Session ----
+    alt-backtick = 'exec-and-forget pmset displaysleepnow'
+    alt-shift-backtick = 'exec-and-forget pmset sleepnow'
+    ctrl-cmd-shift-backspace = '''exec-and-forget osascript -e 'tell application "System Events" to shut down' '''
+    ctrl-cmd-shift-forwardDelete = '''exec-and-forget osascript -e 'tell application "System Events" to shut down' '''
+
+    # ---- Audio output / time / calendar / calculator ----
+    alt-o = 'exec-and-forget SwitchAudioSource -n -t output'
+    alt-p = '''exec-and-forget osascript -e "display notification \"$(date '+%H:%M  %A %B %d')\" with title \"Time\""'''
+    alt-shift-p = 'exec-and-forget open -a Calendar'
+    alt-shift-c = 'exec-and-forget open -a Calculator'
+
+    # ---- Focus (vim keys + arrows), crossing monitors like Hyprland ----
+    alt-h = 'focus --boundaries all-monitors-outer-frame left'
+    alt-j = 'focus --boundaries all-monitors-outer-frame down'
+    alt-k = 'focus --boundaries all-monitors-outer-frame up'
+    alt-l = 'focus --boundaries all-monitors-outer-frame right'
+    alt-left = 'focus --boundaries all-monitors-outer-frame left'
+    alt-down = 'focus --boundaries all-monitors-outer-frame down'
+    alt-up = 'focus --boundaries all-monitors-outer-frame up'
+    alt-right = 'focus --boundaries all-monitors-outer-frame right'
+
+    # ---- Move window ----
+    alt-shift-h = 'move left'
+    alt-shift-j = 'move down'
+    alt-shift-k = 'move up'
+    alt-shift-l = 'move right'
+    alt-shift-left = 'move left'
+    alt-shift-down = 'move down'
+    alt-shift-up = 'move up'
+    alt-shift-right = 'move right'
+
+    # ---- Resize window (100px steps) ----
+    alt-cmd-h = 'resize width -100'
+    alt-cmd-j = 'resize height +100'
+    alt-cmd-k = 'resize height -100'
+    alt-cmd-l = 'resize width +100'
+    alt-cmd-left = 'resize width -100'
+    alt-cmd-down = 'resize height +100'
+    alt-cmd-up = 'resize height -100'
+    alt-cmd-right = 'resize width +100'
+
+    # ---- Workspaces 1-10 ----
+    alt-1 = 'workspace 1'
+    alt-2 = 'workspace 2'
+    alt-3 = 'workspace 3'
+    alt-4 = 'workspace 4'
+    alt-5 = 'workspace 5'
+    alt-6 = 'workspace 6'
+    alt-7 = 'workspace 7'
+    alt-8 = 'workspace 8'
+    alt-9 = 'workspace 9'
+    alt-0 = 'workspace 10'
+
+    # Move window and follow it (movetoworkspace)
+    alt-shift-1 = 'move-node-to-workspace --focus-follows-window 1'
+    alt-shift-2 = 'move-node-to-workspace --focus-follows-window 2'
+    alt-shift-3 = 'move-node-to-workspace --focus-follows-window 3'
+    alt-shift-4 = 'move-node-to-workspace --focus-follows-window 4'
+    alt-shift-5 = 'move-node-to-workspace --focus-follows-window 5'
+    alt-shift-6 = 'move-node-to-workspace --focus-follows-window 6'
+    alt-shift-7 = 'move-node-to-workspace --focus-follows-window 7'
+    alt-shift-8 = 'move-node-to-workspace --focus-follows-window 8'
+    alt-shift-9 = 'move-node-to-workspace --focus-follows-window 9'
+    alt-shift-0 = 'move-node-to-workspace --focus-follows-window 10'
+
+    # Move window silently (movetoworkspacesilent)
+    alt-cmd-1 = ['move-node-to-workspace 1', 'exec-and-forget sketchybar --trigger aerospace_workspace_change']
+    alt-cmd-2 = ['move-node-to-workspace 2', 'exec-and-forget sketchybar --trigger aerospace_workspace_change']
+    alt-cmd-3 = ['move-node-to-workspace 3', 'exec-and-forget sketchybar --trigger aerospace_workspace_change']
+    alt-cmd-4 = ['move-node-to-workspace 4', 'exec-and-forget sketchybar --trigger aerospace_workspace_change']
+    alt-cmd-5 = ['move-node-to-workspace 5', 'exec-and-forget sketchybar --trigger aerospace_workspace_change']
+    alt-cmd-6 = ['move-node-to-workspace 6', 'exec-and-forget sketchybar --trigger aerospace_workspace_change']
+    alt-cmd-7 = ['move-node-to-workspace 7', 'exec-and-forget sketchybar --trigger aerospace_workspace_change']
+    alt-cmd-8 = ['move-node-to-workspace 8', 'exec-and-forget sketchybar --trigger aerospace_workspace_change']
+    alt-cmd-9 = ['move-node-to-workspace 9', 'exec-and-forget sketchybar --trigger aerospace_workspace_change']
+    alt-cmd-0 = ['move-node-to-workspace 10', 'exec-and-forget sketchybar --trigger aerospace_workspace_change']
+
+    # ---- AeroSpace extra: service mode (reload, reset layout) ----
+    alt-shift-semicolon = 'mode service'
+
+[mode.service.binding]
+    esc = ['reload-config', 'mode main']
+    r = ['flatten-workspace-tree', 'mode main']
+    f = ['layout floating tiling', 'mode main']
+    alt-shift-h = ['join-with left', 'mode main']
+    alt-shift-j = ['join-with down', 'mode main']
+    alt-shift-k = ['join-with up', 'mode main']
+    alt-shift-l = ['join-with right', 'mode main']
