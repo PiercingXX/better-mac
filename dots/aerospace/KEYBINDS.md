@@ -9,21 +9,25 @@ does (the SketchyBar layout item swaps AeroSpace's key map on every switch).
 Switch layouts with Ctrl-Space or the Globe key.
 
 ## Essentials
-    tap ⌥              Raycast launcher            (was: tap Super -> ulauncher)
+    tap ⌥              Sol launcher                (was: tap Super -> ulauncher)
     ⌥ Q                close window
     ⌥ ⇧ Q              force-quit app
     ⌥ F                toggle float
     ⌥ ⇧ F              toggle fullscreen
     ⌥ X                toggle split direction
     ⌥ R                toggle SketchyBar (and its gap)
-    ⌥ ⇧ Y              clipboard history (Raycast)
+    ⌥ ⇧ Y              clipboard history (Sol)
+    ⌥ S                settings menu               (was: Super + S)
     ⌥ ⇧ S              Sound settings              (was: pavucontrol)
     ⌥ ⌘ S              System Settings             (was: gnome-control-center)
     ⌥ /                this file
     Caps Lock          Backspace                   (both layouts)
     Backspace          Forward Delete              (Piercing Num)
     Right ⌥ + h/j/k/l  arrows                      (Piercing Num, AltGr arrows)
-    ⌘ ⇧ 4 / ⌘ ⇧ 5      screenshots (macOS)         (was: Print)
+    ⌥ E                screenshot a region         (was: Print)
+    ⌥ ⇧ E              screenshot a window         (was: Shift + Print)
+    ⌥ ⌘ E              screenshot the screen
+                       all go to ~/Pictures/Screenshots + clipboard
     Ctrl ⌘ + drag      move a window from anywhere (was: Super + drag)
 
 ## Apps

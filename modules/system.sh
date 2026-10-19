@@ -10,12 +10,18 @@ system_install() {
     _system_input
     _system_power
     _system_finder_dock
+    _system_desktop
+    _system_screenshots
+    _system_notifications
+    _system_stock_apps
     _system_night_shift
     _system_services
     # set_boot_beep.sh: the startup chime (Apple Silicon mutes it by default)
     run sudo nvram StartupMute=%00 || warn "Could not turn on the startup chime."
     run killall Dock || true
     run killall SystemUIServer || true
+    run killall Finder || true
+    run killall WindowManager || true
     ok "macOS settings applied (some take effect after you log out)."
 }
 
@@ -30,7 +36,7 @@ _system_appearance() {
     run defaults write com.apple.dock launchanim -bool false
     run defaults write com.apple.dock expose-animation-duration -float 0.1
     run defaults write com.apple.universalaccess reduceMotion -bool true \
-        || warn "Reduce Motion not set (needs Full Disk Access); turn it on under Accessibility > Display."
+        || warn "Reduce Motion not set (needs Full Disk Access); turn it on under Accessibility > Motion."
 }
 
 _system_input() {
@@ -69,6 +75,95 @@ _system_finder_dock() {
             run dockutil --add "$app" --no-restart
         fi
     done
+}
+
+# ⌘⇧3/4/5 save where wm-screenshot.sh does (⌥E), without window shadows
+_system_screenshots() {
+    run mkdir -p "$HOME/Pictures/Screenshots"
+    run defaults write com.apple.screencapture location -string "$HOME/Pictures/Screenshots"
+    run defaults write com.apple.screencapture disable-shadow -bool true
+}
+
+# Notifications off for Apple's nag/suggestion senders. macOS 26 keeps the
+# per-app switches in usernoted's group container, readable only with Full
+# Disk Access; bit 25 of each app's flags is "Allow notifications". Apps not
+# listed (Messages, Calendar, Mail, Script Editor for the notifiers, ...)
+# keep theirs.
+_system_notifications() {
+    local quiet="com.apple.tips com.apple.Home com.apple.Siri.ActionPredictionNotifications
+        com.apple.Passbook com.apple.shortcuts com.apple.ScreenTimeEnabledNotifications
+        com.apple.ScreenTimeNotifications com.apple.wifi.usernotifications.autohotspot
+        com.apple.wifi.usernotifications.recommend com.apple.wifi.usernotifications.diagnostics
+        com.apple.AudioAccessoryUserNotifications com.apple.AudioAccessoryInteractiveNotifications
+        com.apple.appleaccount.notifications com.apple.icloudwebd com.apple.SoftwareUpdateNotification
+        com.apple.BTMNotificationAgent com.apple.ReplayKitNotifications com.apple.studentd.notifications
+        com.apple.gamecenter com.apple.news com.apple.stocks com.apple.podcasts com.apple.Music
+        com.apple.TV com.apple.weather com.apple.Photos com.apple.voicebanking.usernotifications
+        com.apple.appleseed.FeedbackAssistant"
+    if [ "$DRY_RUN" -eq 1 ]; then
+        dry "notifications off: $(echo $quiet | wc -w | tr -d ' ') Apple apps"
+        return 0
+    fi
+    # The bare domain name resolves to an empty plist outside the container
+    local domain="$HOME/Library/Group Containers/group.com.apple.usernoted/Library/Preferences/group.com.apple.usernoted"
+    local stage
+    stage="$(mktemp)"
+    if ! defaults export "$domain" "$stage" 2>/dev/null \
+        || ! /usr/bin/python3 -I - "$stage" $quiet <<'PY'
+import plistlib, sys
+path, quiet = sys.argv[1], set(sys.argv[2:])
+with open(path, 'rb') as f:
+    d = plistlib.load(f)
+if not d.get('apps'):
+    sys.exit(1)
+for app in d.get('apps', []):
+    if app.get('bundle-id') in quiet:
+        app['flags'] = app.get('flags', 0) & ~(1 << 25)
+with open(path, 'wb') as f:
+    plistlib.dump(d, f, fmt=plistlib.FMT_BINARY)
+PY
+    then
+        rm -f "$stage"
+        warn "Notifications not changed (Terminal needs Full Disk Access); use System Settings > Notifications."
+        return 0
+    fi
+    defaults import "$domain" "$stage"
+    rm -f "$stage"
+    killall usernoted NotificationCenter 2>/dev/null || true
+    ok "Notifications off for Apple's tips, suggestions and nags."
+}
+
+_system_desktop() {
+    # Clean desktop: no icons (drives included) and no widgets. The drives
+    # still show in the Finder sidebar.
+    run defaults write com.apple.finder CreateDesktop -bool false
+    run defaults write com.apple.finder ShowHardDrivesOnDesktop -bool false
+    run defaults write com.apple.finder ShowExternalHardDrivesOnDesktop -bool false
+    run defaults write com.apple.finder ShowRemovableMediaOnDesktop -bool false
+    run defaults write com.apple.finder ShowMountedServersOnDesktop -bool false
+    run defaults write com.apple.WindowManager StandardHideWidgets -int 1
+    run defaults write com.apple.WindowManager StageManagerHideWidgets -int 1
+}
+
+# Apple's optional apps and GarageBand's sound library. Matched by bundle id
+# because the names change (Keynote is "Keynote Creator Studio" on macOS 26).
+# The apps in /System/Applications are on the sealed system volume and can't
+# be removed.
+_system_stock_apps() {
+    local app id
+    for app in /Applications/*.app; do
+        id="$(defaults read "$app/Contents/Info.plist" CFBundleIdentifier 2>/dev/null)" || continue
+        case "$id" in
+            com.apple.garageband10|com.apple.iMovieApp|com.apple.Keynote|com.apple.Numbers|com.apple.Pages)
+                run sudo rm -rf "$app" ;;
+        esac
+    done
+    # Logic Pro shares these; keep them if it's installed
+    if [ ! -d "/Applications/Logic Pro.app" ]; then
+        run sudo rm -rf "/Library/Application Support/GarageBand" \
+                        "/Library/Application Support/Logic" \
+                        "/Library/Audio/Apple Loops"
+    fi
 }
 
 _system_night_shift() {

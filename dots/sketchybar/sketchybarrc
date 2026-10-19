@@ -1,8 +1,8 @@
 #!/bin/bash
 # GitHub.com/PiercingXX
 # piercing-dots waybar (dots/waybar), rebuilt for SketchyBar + AeroSpace.
-# Left: workspaces + focused app. Right: clock, layout, volume, battery, power.
-# The clock sits on the right because the center is under the MacBook notch.
+# Left: workspaces + focused app. Time just left of the MacBook notch, date just
+# right of it. Right: volume, battery, power.
 
 PLUGIN_DIR="$CONFIG_DIR/plugins"
 
@@ -13,11 +13,19 @@ MONO="JetBrainsMono Nerd Font"
 SANS="Fira Sans"
 
 # Transparent bar, like window#waybar { background-color: transparent }
-sketchybar --bar position=top height=34 color=0x00000000 sticky=on \
-                 padding_left=10 padding_right=10
+# notch_width is measured from the screen so the q/e items hug the notch at
+# any display scale (180pt at the default, 209pt at "More Space"); a reload
+# picks up a scale change
+NOTCH_WIDTH=$(osascript -l JavaScript -e 'ObjC.import("AppKit"); var s = $.NSScreen.mainScreen;
+    Math.round(s.frame.size.width - s.auxiliaryTopLeftArea.size.width - s.auxiliaryTopRightArea.size.width)' 2>/dev/null)
+case "$NOTCH_WIDTH" in ''|*[!0-9]*) NOTCH_WIDTH=180 ;; esac
+[ "$NOTCH_WIDTH" -gt 0 ] && [ "$NOTCH_WIDTH" -lt 400 ] || NOTCH_WIDTH=180
 
-sketchybar --default icon.font="$MONO:Bold:16.0" \
-                     label.font="$SANS:SemiBold:16.0" \
+sketchybar --bar position=top height=34 color=0x00000000 sticky=on \
+                 padding_left=10 padding_right=10 notch_width=$NOTCH_WIDTH
+
+sketchybar --default icon.font="$MONO:Bold:13.6" \
+                     label.font="$SANS:SemiBold:13.6" \
                      icon.color=$WHITE label.color=$TEXT \
                      padding_left=4 padding_right=4 \
                      icon.padding_left=4 icon.padding_right=4 \
@@ -31,7 +39,7 @@ for sid in 1 2 3 4 5 6 7 8 9 10; do
                --set "space.$sid" drawing=off \
                      icon.drawing=off \
                      label="$sid" \
-                     label.font="$MONO:Bold:16.0" \
+                     label.font="$MONO:Bold:13.6" \
                      label.color=$WHITE \
                      label.padding_left=12 label.padding_right=12 \
                      background.color=$PILL \
@@ -55,7 +63,7 @@ sketchybar --add item front_app left \
 
 # ---- Right side, added right-to-left ----
 sketchybar --add item power right \
-           --set power icon="" icon.font="$MONO:Bold:18.0" label.drawing=off \
+           --set power icon="" icon.font="$MONO:Bold:15.3" label.drawing=off \
                  padding_right=10 \
                  click_script="osascript -e 'tell application \"loginwindow\" to «event aevtrsdn»'"
 
@@ -68,17 +76,27 @@ sketchybar --add item volume right \
                  click_script="open 'x-apple.systempreferences:com.apple.Sound-Settings.extension'" \
            --subscribe volume volume_change
 
-# Active layout (waybar #language); its script also keeps AeroSpace's keys in sync
+# Active layout (waybar #language), hidden from the bar; its script still runs
+# (updates=on) to keep AeroSpace's keys in sync with the layout
 sketchybar --add event input_change AppleSelectedInputSourcesChangedNotification \
            --add item keyboard right \
-           --set keyboard icon="󰌌" script="$PLUGIN_DIR/keyboard.sh" \
+           --set keyboard drawing=off updates=on \
+                 icon="󰌌" script="$PLUGIN_DIR/keyboard.sh" \
            --subscribe keyboard input_change system_woke
 
-sketchybar --add item clock right \
+# ---- Clock: time left of the notch (q), date right of it (e) ----
+sketchybar --add item clock q \
            --set clock update_freq=10 icon.drawing=off \
-                 label.font="$MONO:Bold:18.0" label.color=$WHITE \
-                 padding_right=12 \
+                 label.font="$MONO:Bold:15.3" label.color=$WHITE \
+                 padding_right=20 \
                  script="$PLUGIN_DIR/clock.sh" \
+                 click_script="open -a Calendar" \
+           --subscribe clock system_woke
+
+sketchybar --add item date e \
+           --set date icon.drawing=off \
+                 label.font="$MONO:Bold:15.3" label.color=$WHITE \
+                 padding_left=20 \
                  click_script="open -a Calendar"
 
 sketchybar --update

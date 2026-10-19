@@ -111,6 +111,9 @@ cleanup_piercing_dots() {
 # ---------------------------------------------------------------------------
 # Homebrew
 # ---------------------------------------------------------------------------
+# Homebrew 7 asks y/N before every install; this is an unattended installer
+export HOMEBREW_NO_ASK=1
+
 _brew_shellenv() {
     local b
     for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do
@@ -130,7 +133,7 @@ ensure_brew() {
         return 0
     fi
     say "Installing Homebrew (this also installs the Xcode Command Line Tools)..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || return 1
+    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || return 1
     _brew_shellenv
 }
 

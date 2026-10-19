@@ -12,7 +12,7 @@
             "complex_modifications": {
                 "rules": [
                     {
-                        "description": "Tap left Option alone: Option+Space (Raycast), like tapping Super for the launcher",
+                        "description": "Tap left or right Option alone: Option+Space (Sol), like tapping Super for the launcher",
                         "manipulators": [
                             {
                                 "type": "basic",
@@ -24,6 +24,30 @@
                                 "to_if_alone": [
                                     { "key_code": "spacebar", "modifiers": ["left_option"] }
                                 ]
+                            },
+                            {
+                                "type": "basic",
+                                "from": {
+                                    "key_code": "right_option",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [{ "key_code": "right_option", "lazy": true }],
+                                "to_if_alone": [
+                                    { "key_code": "spacebar", "modifiers": ["left_option"] }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "description": "Option+Tab: Option+Space (Sol), like Alt+Tab opening the launcher",
+                        "manipulators": [
+                            {
+                                "type": "basic",
+                                "from": {
+                                    "key_code": "tab",
+                                    "modifiers": { "mandatory": ["option"] }
+                                },
+                                "to": [{ "key_code": "spacebar", "modifiers": ["left_option"] }]
                             }
                         ]
                     },

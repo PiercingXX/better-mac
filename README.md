@@ -1,5 +1,7 @@
 # better-mac
 
+![Stock macOS desktop on the left; better-mac on the right](screenshots/before-after.png)
+
 The macOS sibling of [linux-mod](https://github.com/PiercingXX/linux-mod).
 One script turns a fresh Mac into the PiercingXX setup: bash 5 and GNU tools,
 piercing-dots (bashrc, kitty, nvim, tmux, yazi), the arch-mini-mod apps,
@@ -39,10 +41,10 @@ and waits for you to press Enter:
 
 | Pane | Turn on |
 |---|---|
-| Privacy > Accessibility | AeroSpace, Raycast |
+| Privacy > Accessibility | AeroSpace, Sol, piercing-gestures |
 | Privacy > Input Monitoring | karabiner_grabber, karabiner_observer |
 | Karabiner-Elements window | its driver extension and login items |
-| Raycast welcome window | hotkey **⌥ Space** (tapping left Option sends it) |
+| Sol welcome window | hotkey **⌥ Space** (tapping Option sends it), clipboard shortcut **⌥ ⇧ Y**, Launch at login on |
 | Keyboard > Text Input > Edit | add **Colemak** and **Piercing Num** (under Others), remove U.S. |
 
 ### 4. Reboot
@@ -140,10 +142,11 @@ piercing-dots configs, with small macOS fixes applied to a copy:
 
 ### `modules/scripts.sh`: ~/.scripts
 
-Your piercing-dots `.scripts`, minus the Linux-only ones listed in
-`dots/scripts/macos-drop.txt` (session launchers, Raycast-covered helpers,
-volume/brightness, workspace-notify, skippy-desk, update-mirrors), with the
-macOS ports in `dots/scripts/` laid over them at the same paths:
+better-mac's own macOS copy of your piercing-dots `.scripts`, kept in
+`dots/scripts/` and installed as-is; nothing in `~/.scripts` comes from
+piercing-dots. The Linux-only scripts aren't included: session launchers,
+Sol-covered helpers, volume/brightness, workspace-notify, skippy-desk,
+keybinds.html and update-mirrors.
 
 | | macOS version |
 |---|---|
@@ -186,9 +189,9 @@ firewall on, Remote Login (SSH) on, startup chime on (`set_boot_beep.sh`).
 |---|---|
 | Hyprland | [AeroSpace](https://github.com/nikitabobko/AeroSpace): i3-style tiling, workspaces 1-10 |
 | waybar | [SketchyBar](https://github.com/FelixKratz/SketchyBar), with the macOS menu bar auto-hidden |
-| Dock | hidden for good (1000s reveal delay); launch from keybinds or Raycast, switch with ⌘Tab |
+| Dock | hidden for good (1000s reveal delay); launch from keybinds or Sol, switch with ⌘Tab |
 | Hyprland borders | [JankyBorders](https://github.com/FelixKratz/JankyBorders) |
-| ulauncher / tap Super | Raycast, opened by tapping left Option |
+| ulauncher / tap Super | Sol, opened by tapping Option or swiping up with 3 fingers |
 | hyprpaper | wallpaper `~/Pictures/backgrounds/1346578.jpg` |
 | `~/.scripts` | copied from piercing-dots, so the note/server/AI binds work |
 
@@ -219,7 +222,7 @@ dots/
 ├── kitty/macos.conf
 ├── tmux/macos.sed
 ├── yazi/*.sed
-└── scripts/             macOS ports of ~/.scripts + macos-drop.txt
+└── scripts/             ~/.scripts for macOS (settings menu, notifiers, lib)
 ```
 
 ## Not possible on macOS

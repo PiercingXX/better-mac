@@ -14,7 +14,7 @@ keyboard_install() {
     say "Installing the Piercing Num layout..."
     if [ "$DRY_RUN" -eq 1 ]; then
         dry "piercing-num.keylayout -> ~/Library/Keyboard Layouts/"
-        dry "remove the hidutil keyremap LaunchAgent if present (Karabiner owns those keys)"
+        dry "remove any hidutil keyremap LaunchAgents (Karabiner owns those keys)"
         return 0
     fi
 
@@ -32,12 +32,20 @@ keyboard_install() {
         "$HOME/Library/Keyboard Layouts/piercing-num.keylayout"
     [ -n "$tmp" ] && rm -rf "$tmp"
 
-    local agent="$HOME/Library/LaunchAgents/com.piercingxx.keyremap.plist"
-    if [ -f "$agent" ]; then
+    # Any hidutil remap agent (ours was com.piercingxx.keyremap; hand-made ones
+    # like com.local.capslock-backspace too) would stack on Karabiner's remaps
+    local agent removed=0
+    for agent in "$HOME"/Library/LaunchAgents/*.plist; do
+        [ -f "$agent" ] || continue
+        grep -q '/usr/bin/hidutil' "$agent" && grep -q 'UserKeyMapping' "$agent" || continue
         launchctl unload "$agent" 2>/dev/null || true
         rm -f "$agent"
+        ok "Removed hidutil keyremap agent $(basename "$agent")."
+        removed=1
+    done
+    if [ "$removed" -eq 1 ]; then
         hidutil property --set '{"UserKeyMapping":[]}' >/dev/null 2>&1 || true
-        ok "Removed the hidutil keyremap agent; Karabiner handles those keys per layout now."
+        ok "Karabiner handles those keys per layout now."
     fi
     ok "Piercing Num installed."
 }

@@ -44,13 +44,14 @@ persistent-workspaces = []
 key-mapping.preset = 'colemak'
 # <<< keyboard layout <<<
 
-# general.gaps_in = 8, gaps_out = 10. Top = 10 + SketchyBar height (34).
+# general.gaps_in = 8, gaps_out = 10. SketchyBar sits in the notch strip, which
+# macOS already keeps windows out of, so the top gap is only 5.
 gaps.inner.horizontal = 8
 gaps.inner.vertical = 8
 gaps.outer.left = 10
 gaps.outer.bottom = 10
 gaps.outer.right = 10
-gaps.outer.top = 44
+gaps.outer.top = 5
 
 # Keep the SketchyBar workspace pills in sync
 on-focus-changed = ['exec-and-forget sketchybar --trigger aerospace_workspace_change']
@@ -67,17 +68,13 @@ on-window-detected = [
 [exec.env-vars]
     PATH = '${HOME}/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:${PATH}'
 
-# rules.lua workspace rules (falls back to the main display when unplugged)
-[workspace-to-monitor-force-assignment]
-    1 = ['ultrawide', 'main']
-    2 = ['ultrawide', 'main']
-    3 = ['ultrawide', 'main']
-    4 = ['sdqhd', 'main']
-    5 = ['sdqhd', 'main']
+# rules.lua pins workspaces to the ultrawide and sdqhd monitors; this Mac only
+# has its built-in display, so every workspace stays on it
 
 [mode.main.binding]
     # ---- Essentials ----
     alt-q = 'close'
+    alt-s = 'exec-and-forget kitty -1 -d ~ ~/.scripts/PiercingXX-Settings-Menu/settings-menu.sh'
     alt-shift-q = '''exec-and-forget kill -9 "$(aerospace list-windows --focused --format '%{app-pid}')"'''
     alt-shift-s = 'exec-and-forget open "x-apple.systempreferences:com.apple.Sound-Settings.extension"'
     alt-cmd-s = 'exec-and-forget open -b com.apple.systempreferences'
@@ -85,8 +82,11 @@ on-window-detected = [
     alt-f = 'layout floating tiling'
     alt-r = 'exec-and-forget ~/.scripts/Control-Scripts/toggle-topbar.sh'
     alt-x = 'layout tiles horizontal vertical'
-    alt-shift-y = 'exec-and-forget open raycast://extensions/raycast/clipboard-history/clipboard-history'
     alt-slash = 'exec-and-forget kitty -1 -d ~ less ~/.config/aerospace/KEYBINDS.md'
+    # Print / Shift+Print: no Print key on a MacBook, so E (screEnshot)
+    alt-e = 'exec-and-forget ~/.scripts/Control-Scripts/wm-screenshot.sh region'
+    alt-shift-e = 'exec-and-forget ~/.scripts/Control-Scripts/wm-screenshot.sh window'
+    alt-cmd-e = 'exec-and-forget ~/.scripts/Control-Scripts/wm-screenshot.sh full'
 
     # ---- Notes and to-do lists ----
     alt-n = 'exec-and-forget kitty -1 -d ~ ~/.scripts/Note-Scripts/open_daily_note.sh --split'

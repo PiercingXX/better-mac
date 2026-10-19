@@ -1,11 +1,11 @@
 #!/bin/bash
 # GitHub.com/PiercingXX
-# Hyprland general.border_size = 2, active white, inactive rgba(414141ff).
+# Hyprland general.border_size = 2 (thicker here: 3), active white, inactive rgba(414141ff).
 # Corner rounding follows macOS window corners; Hyprland's rounding = 10 can't be set.
 
 options=(
     style=round
-    width=2.0
+    width=3.0
     hidpi=on
     active_color=0xffffffff
     inactive_color=0xff414141
