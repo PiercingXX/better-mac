@@ -84,24 +84,23 @@ _system_screenshots() {
     run defaults write com.apple.screencapture disable-shadow -bool true
 }
 
-# Notifications off for Apple's nag/suggestion senders. macOS 26 keeps the
-# per-app switches in usernoted's group container, readable only with Full
-# Disk Access; bit 25 of each app's flags is "Allow notifications". Apps not
-# listed (Messages, Calendar, Mail, Script Editor for the notifiers, ...)
-# keep theirs.
+# Notifications off for every app except the necessary ones below. macOS 26
+# keeps the per-app switches in usernoted's group container, readable only
+# with Full Disk Access; bit 25 of each app's flags is "Allow notifications".
+# Only apps that have already asked to notify are listed there, so apps
+# installed later start allowed until this runs again.
+#   Script Editor        ~/.scripts notifiers (battery, bluetooth, network)
+#   tccd                 privacy permission notices
+#   Messages             texts
+#   Tailscale            login expiry
+#   Bluetooth, AirDrop   pairing codes, incoming AirDrop / Continuity
 _system_notifications() {
-    local quiet="com.apple.tips com.apple.Home com.apple.Siri.ActionPredictionNotifications
-        com.apple.Passbook com.apple.shortcuts com.apple.ScreenTimeEnabledNotifications
-        com.apple.ScreenTimeNotifications com.apple.wifi.usernotifications.autohotspot
-        com.apple.wifi.usernotifications.recommend com.apple.wifi.usernotifications.diagnostics
-        com.apple.AudioAccessoryUserNotifications com.apple.AudioAccessoryInteractiveNotifications
-        com.apple.appleaccount.notifications com.apple.icloudwebd com.apple.SoftwareUpdateNotification
-        com.apple.BTMNotificationAgent com.apple.ReplayKitNotifications com.apple.studentd.notifications
-        com.apple.gamecenter com.apple.news com.apple.stocks com.apple.podcasts com.apple.Music
-        com.apple.TV com.apple.weather com.apple.Photos com.apple.voicebanking.usernotifications
-        com.apple.appleseed.FeedbackAssistant"
+    local keep="com.apple.ScriptEditor2 com.apple.tccd com.apple.MobileSMS com.apple.iChat
+        io.tailscale.ipn.macsys _SYSTEM_CENTER_:com.apple.BluetoothUIServer
+        _SYSTEM_CENTER_:com.apple.sharingd _SYSTEM_CENTER_:com.apple.sharingd.continuity
+        com.apple.wifip2pd.UserNotification"
     if [ "$DRY_RUN" -eq 1 ]; then
-        dry "notifications off: $(echo $quiet | wc -w | tr -d ' ') Apple apps"
+        dry "notifications off for all but $(echo $keep | wc -w | tr -d ' ') apps"
         return 0
     fi
     # The bare domain name resolves to an empty plist outside the container
@@ -109,15 +108,15 @@ _system_notifications() {
     local stage
     stage="$(mktemp)"
     if ! defaults export "$domain" "$stage" 2>/dev/null \
-        || ! /usr/bin/python3 -I - "$stage" $quiet <<'PY'
+        || ! /usr/bin/python3 -I - "$stage" $keep <<'PY'
 import plistlib, sys
-path, quiet = sys.argv[1], set(sys.argv[2:])
+path, keep = sys.argv[1], set(sys.argv[2:])
 with open(path, 'rb') as f:
     d = plistlib.load(f)
 if not d.get('apps'):
     sys.exit(1)
 for app in d.get('apps', []):
-    if app.get('bundle-id') in quiet:
+    if app.get('bundle-id') not in keep:
         app['flags'] = app.get('flags', 0) & ~(1 << 25)
 with open(path, 'wb') as f:
     plistlib.dump(d, f, fmt=plistlib.FMT_BINARY)
@@ -130,7 +129,7 @@ PY
     defaults import "$domain" "$stage"
     rm -f "$stage"
     killall usernoted NotificationCenter 2>/dev/null || true
-    ok "Notifications off for Apple's tips, suggestions and nags."
+    ok "Notifications off except Script Editor, permissions, Messages, Tailscale, Bluetooth and AirDrop."
 }
 
 _system_desktop() {
