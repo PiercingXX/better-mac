@@ -1,145 +1,130 @@
 #!/usr/bin/env bash
 # GitHub.com/PiercingXX
-# Audio Input/Output Manager for macOS (SwitchAudioSource)
+# Audio Input/Output Manager for PipeWire (WirePlumber).
+#   audio-input-manager.sh                 interactive menu
+#   audio-input-manager.sh --toggle-output cycle the default output (keybind)
+#
+# macOS port (better-mac): CoreAudio through SwitchAudioSource (switchaudio-osx)
+# instead of wpctl/pw-dump; the system alert device follows the output, the
+# chime is afplay. No stream moving needed (CoreAudio moves them itself).
+# env bash: AeroSpace runs this directly and /bin/bash is 3.2 (no mapfile).
+# Outputs whose name matches PIERCINGXX_AUDIO_SKIP (extended regex) are
+# hidden; the default hides the virtual devices meeting apps install. Set
+# PIERCINGXX_AUDIO_SKIP="" to show everything.
 
-export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+# shellcheck source=../lib/common.sh
+. "$SCRIPT_DIR/../lib/common.sh"
 
-set -e
-
-notify() {
-    local title="$1" body="$2"
-    body="${body//\"/\\\"}"
-    title="${title//\"/\\\"}"
-    osascript -e "display notification \"$body\" with title \"$title\"" >/dev/null 2>&1 || true
-}
+AUDIO_SKIP="${PIERCINGXX_AUDIO_SKIP-ZoomAudioDevice|Microsoft Teams Audio}"
 
 notify_error() {
-    local body="$1"
-    if command -v osascript &>/dev/null; then
-        notify "Audio Output Toggle Failed" "$body"
-    fi
-    echo "$body" >&2
+    notify_replace audio-error normal 3000 audio "Audio" "$1"
+    echo "$1" >&2
 }
 
 play_switch_chime() {
-    local chime="/System/Library/Sounds/Pop.aiff"
-    if command -v afplay &>/dev/null && [[ -f "$chime" ]]; then
-        afplay "$chime" >/dev/null 2>&1 &
+    local f=/System/Library/Sounds/Pop.aiff
+    [ -f "$f" ] && command_exists afplay && { afplay "$f" >/dev/null 2>&1 & }
+}
+
+command_exists SwitchAudioSource || { notify_error "SwitchAudioSource not found. Install it with: brew install switchaudio-osx"; exit 1; }
+
+# list_nodes output|input -> "id<TAB>name" lines
+# cli format is "name,type,id,uid"; names may contain commas, so cut from the right
+list_nodes() {
+    local type="$1"
+    SwitchAudioSource -a -t "$type" -f cli 2>/dev/null | awk -F, 'NF >= 4 {
+            id = $(NF-1); name = $1
+            for (i = 2; i <= NF-3; i++) name = name "," $i
+            print id "\t" name }' \
+    | { if [ -n "$AUDIO_SKIP" ] && [ "$type" = output ]; then grep -Ev "$AUDIO_SKIP"; else cat; fi; }
+}
+
+# default_id output|input
+default_id() {
+    SwitchAudioSource -c -t "$1" -f cli 2>/dev/null | awk -F, '{print $(NF-1)}'
+}
+
+# set_default output|input ID NAME: alerts and system sounds follow the output too
+set_default() {
+    SwitchAudioSource -t "$1" -i "$2" >/dev/null || return 1
+    if [ "$1" = output ]; then
+        SwitchAudioSource -t system -s "$3" >/dev/null 2>&1 || true
     fi
 }
 
-# Detect if SwitchAudioSource is available
-if ! command -v SwitchAudioSource &>/dev/null; then
-    notify_error "SwitchAudioSource not found. Install it with: brew install switchaudio-osx"
-    exit 1
-fi
+# ---------------------------------------------------------------------------
+# Keybind mode: cycle outputs
+# ---------------------------------------------------------------------------
+if [[ "${1:-}" == "--toggle-output" ]]; then
+    mapfile -t sinks < <(list_nodes output)
+    [ ${#sinks[@]} -gt 0 ] || { notify_error "No audio output devices found."; exit 1; }
 
-# list_devices <output|input>: one device name per line
-list_devices() {
-    SwitchAudioSource -a -t "$1" 2>/dev/null | sed '/^[[:space:]]*$/d'
-}
-
-current_device() {
-    SwitchAudioSource -c -t "$1" 2>/dev/null
-}
-
-# Handle --toggle-output flag for keybinds
-if [[ "$1" == "--toggle-output" ]]; then
-    sinks=()
-    while IFS= read -r line; do
-        sinks+=("$line")
-    done < <(list_devices output)
-
-    if [[ ${#sinks[@]} -eq 0 ]]; then
-        notify_error "No audio output devices found."
-        exit 1
-    fi
-
-    current="$(current_device output)"
-    current_idx=-1
+    current=$(default_id output)
+    next_idx=0
     for i in "${!sinks[@]}"; do
-        if [[ "${sinks[$i]}" == "$current" ]]; then
-            current_idx=$i
+        if [ "${sinks[$i]%%$'\t'*}" = "$current" ]; then
+            next_idx=$(( (i + 1) % ${#sinks[@]} ))
+            break
         fi
     done
+    next_id="${sinks[$next_idx]%%$'\t'*}"
+    next_name="${sinks[$next_idx]#*$'\t'}"
 
-    # Calculate next index
-    if [[ $current_idx -eq -1 ]]; then
-        next_idx=0
-    else
-        next_idx=$(( (current_idx + 1) % ${#sinks[@]} ))
-    fi
-
-    next_sink="${sinks[$next_idx]}"
-    SwitchAudioSource -t output -s "$next_sink" >/dev/null
-    # Alerts and system sounds follow the new output too
-    SwitchAudioSource -t system -s "$next_sink" >/dev/null 2>&1 || true
-
-    notify "Audio Output Switched" "$next_sink"
-    echo "Switched to: $next_sink"
-
+    set_default output "$next_id" "$next_name" || { notify_error "Could not switch to $next_name."; exit 1; }
+    notify_replace audio-output low 2000 audio-speakers "Audio Output Switched" "$next_name"
+    echo "Switched to: $next_name"
     play_switch_chime
     exit 0
 fi
 
-# Interactive menu mode
-if ! command -v gum &>/dev/null; then
-    echo "Error: gum is required for interactive mode. Install it (brew install gum) or use --toggle-output flag." >&2
-    exit 1
+# ---------------------------------------------------------------------------
+# Interactive menu
+# ---------------------------------------------------------------------------
+command_exists gum || { echo "gum is required for interactive mode (or use --toggle-output)." >&2; exit 1; }
+
+if [[ "${PIERCINGXX_ASCII_MENU:-0}" == 1 ]]; then
+    out_label="Output (Speakers/Headset)"; in_label="Microphone (Input)"
+else
+    out_label="🔈 Output (Speakers/Headset)"; in_label="🎤 Microphone (Input)"
 fi
 
-# pick_device <output|input> <label>
-pick_device() {
-    local type="$1" label="$2" current num
-    local names=()
+# choose_device output|input
+choose_device() {
+    local kind="$1" current line id name pick
+    local -a nodes labels
+    mapfile -t nodes < <(list_nodes "$kind")
+    [ ${#nodes[@]} -gt 0 ] || { err "No audio $kind devices found."; return 1; }
+    current=$(default_id "$kind")
 
-    while IFS= read -r line; do
-        names+=("$line")
-    done < <(list_devices "$type")
-
-    if [[ ${#names[@]} -eq 0 ]]; then
-        echo "No audio $label devices found."
-        exit 1
-    fi
-
-    current="$(current_device "$type")"
-
-    # Display devices
-    for i in "${!names[@]}"; do
-        local mark=""
-        if [[ "${names[$i]}" == "$current" ]]; then
-            mark="[CURRENT] "
+    for line in "${nodes[@]}"; do
+        id="${line%%$'\t'*}"; name="${line#*$'\t'}"
+        if [ "$id" = "$current" ]; then
+            labels+=("$name  [current]  #$id")
+        else
+            labels+=("$name  #$id")
         fi
-        printf "  %2d. %s%s\n" $((i+1)) "$mark" "${names[$i]}"
     done
 
-    echo ""
-    read -p "Enter the number of the $label device to set as default: " num
-
-    if [[ "$num" =~ ^[0-9]+$ ]] && [ "$num" -ge 1 ] && [ "$num" -le ${#names[@]} ]; then
-        SwitchAudioSource -t "$type" -s "${names[$((num-1))]}" >/dev/null
-        if [[ "$type" == "output" ]]; then
-            SwitchAudioSource -t system -s "${names[$((num-1))]}" >/dev/null 2>&1 || true
-        fi
-        echo "✓ Set default $label to: ${names[$((num-1))]}"
+    pick=$(printf '%s\n' "${labels[@]}" | gum choose --header "Set default $kind device") || return 0
+    [ -n "$pick" ] || return 0
+    id="${pick##*#}"
+    if set_default "$kind" "$id" "${pick%%  *}"; then
+        ok "Default $kind set to: ${pick%%  *}"
     else
-        echo "✗ Invalid selection."
-        exit 1
+        err "Could not set default $kind."
+        return 1
     fi
 }
 
-clear
-
-choice=$(printf "🔈 Output (Speakers/Headset)\n🎤 Microphone (Input)" | gum choose --header="Select device type to manage:")
-
-if [[ "$choice" == "🎤 Microphone (Input)" ]]; then
+while true; do
     clear
-    echo "🎤 Available audio input devices:"
-    echo ""
-    pick_device input input
-elif [[ "$choice" == "🔈 Output (Speakers/Headset)" ]]; then
-    clear
-    echo "🔈 Available audio output devices:"
-    echo ""
-    pick_device output output
-fi
+    choice=$(printf '%s\n' "$out_label" "$in_label" "Back" | gum choose --header="Select device type to manage:")
+    case "$choice" in
+        "$out_label") choose_device output ;;
+        "$in_label")  choose_device input ;;
+        *) exit 0 ;;
+    esac
+    pause
+done

@@ -1,121 +1,104 @@
 #!/usr/bin/env bash
 # GitHub.com/PiercingXX
+# Bluetooth Manager: bluetui (preferred), bluetuith, or bluetoothctl.
+#
+# macOS port (better-mac): those TUIs need BlueZ, so this is a small gum menu
+# over blueutil (Homebrew) instead. "Powered off" stands in for the rfkill
+# soft-block check; the bluetooth service check is dropped (bluetoothd is
+# always running under launchd).
 
-# Bluetooth Manager using blueutil (bluetuith needs BlueZ, which macOS doesn't have)
+SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+# shellcheck source=../lib/common.sh
+. "$SCRIPT_DIR/../lib/common.sh"
+detect_distro
 
-export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-
-# Ensure blueutil and gum are installed
-for tool in blueutil gum; do
-    if ! command -v "$tool" &>/dev/null && command -v brew &>/dev/null; then
-        echo "$tool not found. Installing $tool with brew..."
-        brew install "$tool"
+if ! command_exists blueutil; then
+    warn "blueutil not found."
+    if confirm "Install it now?"; then
+        pkg_install blueutil
     fi
-    if ! command -v "$tool" &>/dev/null; then
-        echo "$tool is not installed and could not be installed automatically. Please install $tool."
-        exit 1
+    command_exists blueutil || die "No Bluetooth tool available. Install it with: brew install blueutil"
+fi
+command_exists gum || die "gum is required for this menu."
+
+bt_powered() { [ "$(blueutil -p 2>/dev/null)" = 1 ]; }
+
+# Powered off shows up as "no devices" everywhere
+if ! bt_powered; then
+    warn "Bluetooth is turned off."
+    if confirm "Turn it on?"; then
+        blueutil -p 1 || warn "Could not turn Bluetooth on."
     fi
-done
+fi
 
 # paired_devices: "address<TAB>name<TAB>connected|disconnected" per line
 paired_devices() {
+    local line addr name state
     blueutil --paired 2>/dev/null | while IFS= read -r line; do
-        local addr name state
         addr=$(printf '%s\n' "$line" | sed -n 's/^address: \([^,]*\),.*/\1/p')
         [ -n "$addr" ] || continue
         name=$(printf '%s\n' "$line" | sed -n 's/.*name: "\([^"]*\)".*/\1/p')
         case "$line" in
-            *", not connected"*) state="disconnected" ;;
-            *", connected"*) state="connected" ;;
-            *) state="disconnected" ;;
+            *", not connected"*) state=disconnected ;;
+            *", connected"*)     state=connected ;;
+            *)                   state=disconnected ;;
         esac
         printf '%s\t%s\t%s\n' "$addr" "${name:-$addr}" "$state"
     done
 }
 
-# choose_device <connected|disconnected|any>: prints the chosen address
+# choose_device connected|disconnected|any -> address on stdout
 choose_device() {
-    local want="$1" list choice
+    local want="$1" list pick
     list=$(paired_devices | awk -F '\t' -v want="$want" 'want == "any" || $3 == want { printf "%s  [%s]  %s\n", $2, $3, $1 }')
-    if [ -z "$list" ]; then
-        echo "No matching paired devices." >&2
-        return 1
+    [ -n "$list" ] || { warn "No matching paired devices."; return 1; }
+    pick=$(printf '%s\n' "$list" | gum choose --header "Select a device:") || return 1
+    [ -n "$pick" ] || return 1
+    printf '%s\n' "${pick##* }"
+}
+
+scan_and_pair() {
+    local found list pick addr
+    say "Scanning for 10 seconds... put the device in pairing mode."
+    found=$(blueutil --inquiry 10 2>/dev/null | grep '^address: ')
+    [ -n "$found" ] || { warn "No devices found."; return 0; }
+    list=$(printf '%s\n' "$found" | sed -n 's/^address: \([^,]*\),.*name: "\([^"]*\)".*/\2  \1/p; t; s/^address: \([^,]*\),.*/unknown  \1/p')
+    pick=$(printf '%s\n' "$list" | gum choose --header "Pair with:") || return 0
+    [ -n "$pick" ] || return 0
+    addr="${pick##* }"
+    if blueutil --pair "$addr" && blueutil --connect "$addr"; then
+        ok "Paired and connected."
+    else
+        err "Pairing failed."
     fi
-    choice=$(printf '%s\n' "$list" | gum choose --header="Select a device:") || return 1
-    [ -n "$choice" ] || return 1
-    printf '%s\n' "${choice##* }"
 }
 
 while true; do
     clear
-    if [ "$(blueutil -p 2>/dev/null)" = "1" ]; then
-        power_state="On"
-    else
-        power_state="Off"
-    fi
-    gum style --border rounded --padding "0 2" --foreground 6 "Bluetooth: $power_state"
-
-    action=$(gum choose --header="Bluetooth Manager" \
-        "Paired Devices" \
-        "Connect" \
-        "Disconnect" \
-        "Scan & Pair" \
-        "Turn Bluetooth On" \
-        "Turn Bluetooth Off" \
-        "Back")
+    if bt_powered; then echo "Bluetooth: on"; else echo "Bluetooth: off"; fi
+    action=$(gum choose --header "Bluetooth Manager" \
+        "Paired devices" "Connect" "Disconnect" "Scan & pair" "Forget a device" \
+        "Turn Bluetooth on" "Turn Bluetooth off" "Back") || exit 0
     case "$action" in
-        "Paired Devices")
-            paired_devices | awk -F '\t' '{ printf "  %-32s %-13s %s\n", $2, $3, $1 }'
-            ;;
+        "Paired devices")
+            paired_devices | awk -F '\t' '{ printf "  %-32s %-13s %s\n", $2, $3, $1 }' ;;
         "Connect")
             if addr=$(choose_device disconnected); then
                 gum spin --spinner dot --title "Connecting..." -- blueutil --connect "$addr" \
-                    && echo "✓ Connected." || echo "✗ Could not connect."
-            fi
-            ;;
+                    && ok "Connected." || err "Could not connect."
+            fi ;;
         "Disconnect")
             if addr=$(choose_device connected); then
-                blueutil --disconnect "$addr" && echo "✓ Disconnected." || echo "✗ Could not disconnect."
-            fi
-            ;;
-        "Scan & Pair")
-            echo "Scanning for 10 seconds... put the device in pairing mode."
-            found=$(blueutil --inquiry 10 2>/dev/null | awk '/^address: /' )
-            if [ -z "$found" ]; then
-                echo "No devices found."
-            else
-                list=$(printf '%s\n' "$found" | while IFS= read -r line; do
-                    a=$(printf '%s\n' "$line" | sed -n 's/^address: \([^,]*\),.*/\1/p')
-                    n=$(printf '%s\n' "$line" | sed -n 's/.*name: "\([^"]*\)".*/\1/p')
-                    printf '%s  %s\n' "${n:-unknown}" "$a"
-                done)
-                choice=$(printf '%s\n' "$list" | gum choose --header="Pair with:")
-                if [ -n "$choice" ]; then
-                    addr="${choice##* }"
-                    blueutil --pair "$addr" && blueutil --connect "$addr" \
-                        && echo "✓ Paired and connected." || echo "✗ Pairing failed."
-                fi
-            fi
-            ;;
-        "Turn Bluetooth On")
-            blueutil -p 1 && echo "Bluetooth on."
-            ;;
-        "Turn Bluetooth Off")
-            blueutil -p 0 && echo "Bluetooth off."
-            ;;
-        "Back"|"")
-            break
-            ;;
+                blueutil --disconnect "$addr" && ok "Disconnected." || err "Could not disconnect."
+            fi ;;
+        "Scan & pair") scan_and_pair ;;
+        "Forget a device")
+            if addr=$(choose_device any) && gum confirm "Forget $addr?" --default=false; then
+                blueutil --unpair "$addr" && ok "Forgotten." || err "Could not forget $addr."
+            fi ;;
+        "Turn Bluetooth on")  blueutil -p 1 && ok "Bluetooth on." ;;
+        "Turn Bluetooth off") blueutil -p 0 && ok "Bluetooth off." ;;
+        *) exit 0 ;;
     esac
-    echo "Press Enter to continue..."
-    read -r
+    pause
 done
-
-# After exiting, return to the settings menu
-SCRIPT_DIR="$(dirname "$0")"
-SETTINGS_MENU="$SCRIPT_DIR/settings-menu.sh"
-if [ -x "$SETTINGS_MENU" ]; then
-    "$SETTINGS_MENU"
-else
-    echo "Settings menu not found at $SETTINGS_MENU."
-fi

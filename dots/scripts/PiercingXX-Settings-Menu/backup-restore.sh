@@ -1,91 +1,165 @@
 #!/usr/bin/env bash
 # GitHub.com/PiercingXX
+# Backup & Restore with rsync. Every run shows a dry-run preview first.
+#   Backup:  add/update by default; "mirror" (rsync --delete) is opt-in.
+#   Restore: never deletes files in the destination unless you pick mirror.
+# macOS port (better-mac): always runs Homebrew's rsync 3 (macOS ships
+# openrsync, which lacks --info), resolves paths without GNU realpath -m, and
+# refuses macOS system folders as destinations.
 
-export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+# shellcheck source=../lib/common.sh
+. "$SCRIPT_DIR/../lib/common.sh"
+detect_distro
 
-yellow='\033[1;33m'
-green='\033[0;32m'
-nc='\033[0m'
+command_exists gum || die "gum is required for this menu."
 
-# Function to check if a command exists
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
+find_rsync() {
+    local r
+    for r in "${HOMEBREW_PREFIX:-/opt/homebrew}/bin/rsync" /opt/homebrew/bin/rsync /usr/local/bin/rsync; do
+        [ -x "$r" ] && { echo "$r"; return 0; }
+    done
+    return 1
 }
 
-# macOS ships openrsync (or an ancient rsync 2.6.9); use Homebrew's rsync so
-# -h and --delete behave like on Linux
-if [ ! -x /opt/homebrew/bin/rsync ] && [ ! -x /usr/local/bin/rsync ]; then
-    echo -e "${yellow}Homebrew rsync not found – attempting install...${nc}"
-    if command_exists brew; then
-        brew install rsync
+if ! RSYNC=$(find_rsync); then
+    warn "Homebrew rsync not found - attempting install..."
+    pkg_install rsync || true
+    RSYNC=$(find_rsync) || die "Homebrew rsync is required for Backup & Restore."
+fi
+
+# Expand ~, make absolute, strip trailing slashes and resolve symlinks
+# (/media -> /Volumes) like GNU realpath -m; the path may not exist yet
+normalize_path() {
+    local p="$1" part out="" head tail=""
+    p="${p/#\~/$HOME}"
+    [[ "$p" == /* ]] || p="$PWD/$p"
+    local IFS=/
+    for part in $p; do
+        case "$part" in
+            ""|.) ;;
+            ..) out="${out%/*}" ;;
+            *)  out="$out/$part" ;;
+        esac
+    done
+    head="${out:-/}"
+    while [ ! -d "$head" ]; do
+        tail="/${head##*/}$tail"
+        head="${head%/*}"
+        [ -n "$head" ] || head=/
+    done
+    head=$(cd -P -- "$head" && pwd) || head="${out%"$tail"}"
+    out="${head%/}$tail"
+    echo "${out:-/}"
+}
+
+pick_dir() {
+    # pick_dir "header" -> existing directory (gum file browser, dotfiles shown)
+    local header="$1" start="${2:-$HOME}"
+    say "$header (Enter on a folder to open it, then select it)" >&2
+    gum file --directory --all "$start"
+}
+
+ask_dest() {
+    local header="$1" def="$2" p
+    p=$(gum input --header "$header" --value "$def" --placeholder "/path/to/folder") || return 1
+    [ -n "$p" ] || return 1
+    normalize_path "$p"
+}
+
+# Paths we refuse as a destination: /, the top of a system tree, or $HOME for mirror mode
+dangerous_dest() {
+    case "$1" in
+        /|/Applications|/Library|/System|/Users|/Volumes|/media|/bin|/cores|/dev|/etc|/opt|/opt/homebrew|/private|/private/etc|/private/tmp|/private/var|/sbin|/tmp|/usr|/usr/local|/var) return 0 ;;
+    esac
+    return 1
+}
+
+run_sync() {
+    # run_sync label src dest
+    local label="$1" src="$2" dest="$3" mode
+    local -a opts=(-aH --info=stats1,progress2)
+
+    [ -d "$src" ] || { err "Source does not exist: $src"; return 1; }
+    [ "$src" = "$dest" ] && { err "Source and destination are the same."; return 1; }
+    if dangerous_dest "$dest"; then
+        err "Refusing to use $dest as a destination."
+        return 1
     fi
-    if [ -x /opt/homebrew/bin/rsync ] || [ -x /usr/local/bin/rsync ]; then
-        echo -e "${green}rsync installed successfully.${nc}"
+
+    mode=$(gum choose --header "$label: how should existing files in the destination be treated?" \
+        "Add / update only (safe)" \
+        "Mirror - also DELETE files not in the source" \
+        "Cancel") || return 0
+    case "$mode" in
+        Cancel|"") return 0 ;;
+        Mirror*)
+            if [ "$dest" = "$HOME" ]; then
+                err "Refusing to mirror into your whole home folder; pick a subfolder."
+                return 1
+            fi
+            opts+=(--delete) ;;
+    esac
+
+    # Backing up into a folder inside the source would copy the backup into itself
+    case "$dest/" in
+        "$src"/*) opts+=(--exclude="/${dest#"$src"/}/") ;;
+    esac
+
+    if [ ! -d "$dest" ]; then
+        mkdir -p "$dest" 2>/dev/null || { err "Cannot create $dest (no permission?)."; return 1; }
+    elif [ ! -w "$dest" ]; then
+        err "$dest is not writable by $(id -un)."
+        return 1
+    fi
+
+    clear
+    say "Preview (dry run): $src/ -> $dest/"
+    local preview changes deletes o
+    local -a preview_opts=()
+    for o in "${opts[@]}"; do
+        [[ "$o" == --info=* ]] || preview_opts+=("$o")
+    done
+    preview=$("$RSYNC" -n --itemize-changes "${preview_opts[@]}" "$src/" "$dest/" 2>&1)
+    changes=$(printf '%s\n' "$preview" | grep -c '^[<>ch.]f')
+    deletes=$(printf '%s\n' "$preview" | grep -c '^\*deleting')
+    printf '%s\n' "$preview" | tail -n 40
+    echo
+    echo "Files to copy/update: $changes"
+    [ "$deletes" -gt 0 ] && warn "Files to DELETE in $dest: $deletes"
+    echo
+
+    gum confirm "Run this $label now?" --default=false || { say "Cancelled."; return 0; }
+    if "$RSYNC" "${opts[@]}" "$src/" "$dest/"; then
+        ok "$label complete."
     else
-        echo -e "${yellow}Could not install Homebrew rsync; using the system rsync.${nc}"
+        err "$label failed - see errors above."
+        return 1
     fi
-fi
-RSYNC_OPTS=(-avh --delete)
-if ! rsync --version 2>/dev/null | grep -q 'version [3-9]'; then
-    RSYNC_OPTS=(-av --delete)
-fi
+}
 
 while true; do
     clear
-    if ! command -v gum &>/dev/null; then
-        if command_exists brew; then
-            echo "gum not found. Installing gum with brew..."
-            brew install gum
-        fi
-    fi
-    if ! command -v gum &>/dev/null; then
-        echo "gum is not installed and could not be installed automatically. Please install gum."
-        exit 1
-    fi
     action=$(gum choose --header="Backup & Restore" "Backup" "Restore" "Back")
     case "$action" in
         "Backup")
-            src=$(gum input --placeholder="Enter source directory (to backup)")
-            dest=$(gum input --placeholder="Enter backup destination directory")
-            if [ -n "$src" ] && [ -n "$dest" ]; then
-                if [ ! -d "$src" ]; then
-                    echo "Source directory does not exist: $src"
-                    echo "Press Enter to continue..."; read; continue
-                fi
-                mkdir -p "$dest"
-                echo "Running: rsync ${RSYNC_OPTS[*]} '$src/' '$dest/'"
-                if rsync "${RSYNC_OPTS[@]}" "$src/" "$dest/" 2>&1; then
-                    echo "Backup complete. Press Enter to continue..."
-                else
-                    echo "Backup failed! See errors above. Press Enter to continue..."
-                fi
-                read
-            fi
+            src=$(pick_dir "Choose the folder to back up") || continue
+            [ -n "$src" ] || continue
+            src=$(normalize_path "$src")
+            dest=$(ask_dest "Backup destination folder" "$PX_WORK_ROOT/Backups/$(basename "$src")") || continue
+            run_sync "Backup" "$src" "$dest"
+            pause
             ;;
         "Restore")
-            src=$(gum input --placeholder="Enter backup source directory (to restore from)")
-            dest=$(gum input --placeholder="Enter restore destination directory")
-            if [ -n "$src" ] && [ -n "$dest" ]; then
-                if [ ! -d "$src" ]; then
-                    echo "Backup source directory does not exist: $src"
-                    echo "Press Enter to continue..."; read; continue
-                fi
-                mkdir -p "$dest"
-                echo "Running: rsync ${RSYNC_OPTS[*]} '$src/' '$dest/'"
-                if rsync "${RSYNC_OPTS[@]}" "$src/" "$dest/" 2>&1; then
-                    echo "Restore complete. Press Enter to continue..."
-                else
-                    echo "Restore failed! See errors above. Press Enter to continue..."
-                fi
-                read
-            fi
+            src=$(pick_dir "Choose the backup folder to restore from" "$PX_WORK_ROOT") || continue
+            [ -n "$src" ] || continue
+            src=$(normalize_path "$src")
+            dest=$(ask_dest "Restore into which folder?" "$HOME/$(basename "$src")") || continue
+            run_sync "Restore" "$src" "$dest"
+            pause
             ;;
         "Back"|"")
             break
             ;;
     esac
-    clear
-    # Loop back to menu
-    continue
-    break
-    done
+done

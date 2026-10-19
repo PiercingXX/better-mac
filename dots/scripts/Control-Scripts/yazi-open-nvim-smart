@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Smart nvim opener - opens in tmux window if in tmux, otherwise opens normally
+# macOS port (better-mac): unchanged; yazi.toml calls it as an opener (block = true).
+
+if [ -n "$TMUX" ]; then
+    # We're in tmux - new-window already focuses the window it creates
+    # (selecting by name could jump to an older "nvim" window instead)
+    tmux new-window -c "$(pwd)" -n "nvim" nvim "$@"
+else
+    # Not in tmux - open normally
+    exec nvim "$@"
+fi

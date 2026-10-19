@@ -1,39 +1,31 @@
 #!/usr/bin/env bash
 # GitHub.com/PiercingXX
-# One-shot update availability notification. macOS port:
-# Homebrew formulae + casks, and macOS software updates.
+# One-shot update availability notification (run once at login).
+# macOS port (better-mac): counts come from update-count.sh (Homebrew
+# formulae + casks, and macOS softwareupdate in place of the AUR). The
+# update-system.sh lock is the lib's shlock PID file in $TMPDIR (no flock).
 
-export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+# shellcheck disable=SC1091
+. "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../lib/common.sh"
 
-# notify <title> <body>
-notify() {
-    local title="${1//\\/\\\\}" body="${2//\\/\\\\}"
-    title="${title//\"/\\\"}"
-    body="${body//\"/\\\"}"
-    osascript -e "display notification \"$body\" with title \"$title\"" >/dev/null 2>&1
-}
+COUNTER="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/update-count.sh"
+STATE_TIMEOUT=4000
 
-count_brew() {
-    command -v brew &>/dev/null || { echo 0; return; }
-    brew update --quiet >/dev/null 2>&1
-    brew outdated --quiet 2>/dev/null | awk 'NF{c++} END{print c+0}'
-}
-
-count_macos() {
-    softwareupdate --list 2>&1 | grep -c '^\* Label:'
-}
-
-brew_count=$(count_brew)
-macos_count=$(count_macos)
-
-body=""
-if [[ "$brew_count" =~ ^[0-9]+$ ]] && (( brew_count > 0 )); then
-    body="$brew_count packages can be updated"
-fi
-if [[ "$macos_count" =~ ^[0-9]+$ ]] && (( macos_count > 0 )); then
-    body="${body:+$body, }$macos_count macOS update(s)"
+# Stay quiet while update-system.sh is mid-upgrade (single_instance holds
+# this lock with its PID inside)
+update_lock="${TMPDIR:-/tmp}"
+update_lock="${update_lock%/}/piercingxx-update-system.lock"
+if [ -e "$update_lock" ] && kill -0 "$(cat "$update_lock" 2>/dev/null)" 2>/dev/null; then
+    exit 0
 fi
 
-if [[ -n "$body" ]]; then
-    notify "Updates available" "$body"
+[ -x "$COUNTER" ] || exit 0
+read -r repo aur total < <("$COUNTER" --refresh)
+
+[[ "$total" =~ ^[0-9]+$ ]] && (( total > 0 )) || exit 0
+
+body="$total packages can be updated"
+if (( aur > 0 )); then
+    body="$repo from Homebrew, $aur macOS update(s)"
 fi
+notify_replace update-notify low "$STATE_TIMEOUT" software-update-available "Updates available" "$body"

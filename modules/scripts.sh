@@ -1,8 +1,13 @@
 # shellcheck shell=bash
 # GitHub.com/PiercingXX
-# ~/.scripts on macOS: piercing-dots resources/.scripts, minus the files in
-# dots/scripts/macos-drop.txt, with the macOS ports in dots/scripts/ laid on
-# top at the same paths. Also links /media -> /Volumes so the hardcoded
+# ~/.scripts on macOS: better-mac's own copy in dots/scripts/, ported from
+# piercing-dots resources/.scripts. Nothing is taken from piercing-dots here.
+# Linux-only scripts aren't carried over: the session launchers (start-*,
+# start-wm, start-session.sh, wm-logout-to-tty.sh), the launcher/clipboard/
+# emoji menus and touchpad toggle (Sol and macOS cover them), the
+# volume/brightness OSDs and workspace-notify (native HUD, SketchyBar),
+# skippy-desk (GTK), keybinds.html (~/.config/aerospace/KEYBINDS.md) and
+# update-mirrors.sh (Arch). Also links /media -> /Volumes so the hardcoded
 # /media/Archived-Storage/... paths (notes, inventory, nvim todo) keep working.
 
 scripts_install() {
@@ -12,28 +17,17 @@ scripts_install() {
 }
 
 _scripts_tree() {
-    local ports="$BETTER_MAC_ROOT/dots/scripts"
+    local src="$BETTER_MAC_ROOT/dots/scripts" stage
     if [ "$DRY_RUN" -eq 1 ]; then
-        dry "piercing-dots .scripts - macos-drop.txt + dots/scripts/ ports -> ~/.scripts/"
+        dry "dots/scripts/ -> ~/.scripts/"
         return 0
     fi
-    ensure_piercing_dots || return 0
-
-    local stage line
     stage="$(mktemp -d)"
-    cp -R "$PIERCING_DOTS_DIR/resources/.scripts/." "$stage/"
-    while IFS= read -r line; do
-        case "$line" in ''|'#'*) continue ;; esac
-        rm -f "$stage/$line"
-    done <"$ports/macos-drop.txt"
-    (cd "$ports" && find . -type f ! -name macos-drop.txt -print) | while IFS= read -r line; do
-        mkdir -p "$stage/$(dirname "$line")"
-        cp "$ports/$line" "$stage/$line"
-    done
+    cp -R "$src/." "$stage/"
     chmod -R u+x "$stage"
     install_dir "$stage" "$HOME/.scripts"
     rm -rf "$stage"
-    ok "~/.scripts installed (macOS ports applied, Linux-only scripts left out)."
+    ok "~/.scripts installed."
 }
 
 # /media -> /Volumes via /etc/synthetic.conf (the root volume is read-only;

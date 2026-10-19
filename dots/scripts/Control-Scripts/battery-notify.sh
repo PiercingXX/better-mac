@@ -1,79 +1,105 @@
 #!/usr/bin/env bash
 # GitHub.com/PiercingXX
-# Battery level notification daemon. macOS port (pmset).
-# Notifies at 40%, 30%, 20%, and 10% while discharging, and when the
-# power source changes. Exits silently on Macs without a battery.
+# Battery level notification daemon.
+# Notifies at 40%, 30%, 20%, and 10% while discharging, plus plug/unplug.
+# Event-driven via `pmset -g pslog`; falls back to polling pmset.
+# Exits silently on desktops (no battery present).
+# macOS port (better-mac): pmset replaces sysfs, and `pmset -g pslog`
+# (prints on every power-source notification) replaces upower/udev.
+# Notification timeouts/icons are ignored by Notification Center.
 
-export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+# shellcheck disable=SC1091
+. "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../lib/common.sh"
 
-POLL_INTERVAL=60  # seconds between checks
-
-# One instance only
-PIDFILE="${TMPDIR:-/tmp}/battery-notify.pid"
-if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE" 2>/dev/null)" 2>/dev/null; then
-    exit 0
-fi
-echo $$ >"$PIDFILE"
+POLL_INTERVAL=60  # safety re-check even when events are flowing
+STATE_TIMEOUT=2200
+CRITICAL_TIMEOUT=7000
+THRESHOLDS=(10 20 30 40)  # ascending
 
 # No battery = desktop Mac, exit cleanly
 pmset -g batt 2>/dev/null | grep -q 'InternalBattery' || exit 0
 
-# notify <title> <body>
-notify() {
-    local title="${1//\\/\\\\}" body="${2//\\/\\\\}"
-    title="${title//\"/\\\"}"
-    body="${body//\"/\\\"}"
-    osascript -e "display notification \"$body\" with title \"$title\"" >/dev/null 2>&1
-}
+single_instance battery-notify || exit 0
 
-# read_battery: sets level and status (Charging / Discharging / Full / Not charging)
+# read_battery: sets level and status (Charging / Discharging / Full / Not charging),
+# the same words sysfs uses upstream
 read_battery() {
     local line
-    line="$(pmset -g batt 2>/dev/null | grep 'InternalBattery')"
-    level="$(printf '%s' "$line" | grep -Eo '[0-9]+%' | head -n1 | tr -d '%')"
+    line=$(pmset -g batt 2>/dev/null | grep 'InternalBattery')
+    level=$(printf '%s' "$line" | grep -Eo '[0-9]+%' | head -n1 | tr -d '%')
     case "$line" in
-        *"; discharging;"*)        status="Discharging" ;;
-        *"; charged;"*)            status="Full" ;;
+        *"; discharging;"*)                      status="Discharging" ;;
+        *"; charged;"*)                          status="Full" ;;
         *"; charging;"*|*"; finishing charge;"*) status="Charging" ;;
-        *"not charging"*|*"AC attached"*) status="Not charging" ;;
-        *)                         status="" ;;
+        *"not charging"*|*"AC attached"*)        status="Not charging" ;;
+        *)                                       status="" ;;
     esac
 }
 
-LAST_NOTIFIED=100  # tracks lowest threshold already notified this discharge cycle
+LAST_NOTIFIED=100  # lowest threshold already notified this discharge cycle
 read_battery
 LAST_STATUS="$status"
 
-while true; do
+check_battery() {
+    local level status
     read_battery
-    if [[ -z "$level" ]]; then
-        sleep "$POLL_INTERVAL"
-        continue
-    fi
+    [[ "$level" =~ ^[0-9]+$ ]] || return 0
 
-    if [[ "$status" != "$LAST_STATUS" && -n "$status" ]]; then
+    if [[ -n "$status" && "$status" != "$LAST_STATUS" ]]; then
         case "$status" in
-            Charging)       notify "Power connected" "Charging (${level}%)" ;;
-            Discharging)    notify "On battery" "Discharging (${level}%)" ;;
-            Full)           notify "Battery full" "100%" ;;
-            "Not charging") notify "Power state changed" "Not charging (${level}%)" ;;
+            Charging)
+                notify_replace battery-state low "$STATE_TIMEOUT" battery-good-charging "Power connected" "Charging (${level}%)" ;;
+            Discharging)
+                notify_replace battery-state low "$STATE_TIMEOUT" battery-low "On battery" "Discharging (${level}%)" ;;
+            Full)
+                notify_replace battery-state low "$STATE_TIMEOUT" battery-full-charged "Battery full" "100%" ;;
+            "Not charging")
+                notify_replace battery-state low "$STATE_TIMEOUT" battery "Power state changed" "Not charging (${level}%)" ;;
         esac
         LAST_STATUS="$status"
     fi
 
     if [[ "$status" == "Discharging" ]]; then
-        # Walk thresholds from highest to lowest; notify once per crossing going down
-        for threshold in 40 30 20 10; do
+        # Lowest threshold crossed since the last notification, one bubble only
+        local threshold crossed=""
+        for threshold in "${THRESHOLDS[@]}"; do
             if (( level <= threshold && LAST_NOTIFIED > threshold )); then
-                LAST_NOTIFIED=$threshold
-                notify "Battery ${level}%" "Plug in soon."
+                crossed=$threshold
                 break
             fi
         done
+        if [ -n "$crossed" ]; then
+            LAST_NOTIFIED=$crossed
+            if (( crossed <= 20 )); then
+                notify_replace battery critical "$CRITICAL_TIMEOUT" battery-caution "Battery ${level}%" "Plug in soon."
+            else
+                notify_replace battery low "$STATE_TIMEOUT" battery-low "Battery ${level}%" "Plug in soon."
+            fi
+        fi
     else
         # Charging or Full — reset so we notify again next discharge cycle
         LAST_NOTIFIED=100
     fi
+}
 
-    sleep "$POLL_INTERVAL"
+# Event source: any line means "something changed, re-read pmset"
+event_source() {
+    if command_exists pmset; then
+        exec pmset -g pslog 2>/dev/null
+    else
+        # No event source: emit a tick every interval
+        while sleep "$POLL_INTERVAL"; do echo tick; done
+    fi
+}
+
+check_battery
+while true; do
+    # read -t gives a periodic re-check even if the event stream is quiet
+    while IFS= read -r -t "$POLL_INTERVAL" _ || [ $? -gt 128 ]; do
+        # pslog prints several lines per event; drain the burst first
+        while IFS= read -r -t 0.5 _; do :; done
+        check_battery
+    done < <(event_source)
+    # Event source died; back off and reconnect
+    sleep 5
 done

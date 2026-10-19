@@ -1,106 +1,96 @@
 #!/usr/bin/env bash
 # GitHub.com/PiercingXX
+# Pick a wallpaper with yazi and apply it for the running desktop:
+#   Hyprland -> hyprpaper (IPC, config written for next login)
+#   Sway     -> swaybg
+#   GNOME    -> gsettings
+#   X11 WMs  -> ~/.config/wall.png (read by bspwm/dwm/i3 autostarts) + feh/hsetroot
+#
+# macOS port (better-mac): one path, System Events sets the desktop picture
+# per display (same or different per display, like the Hyprland branch).
+# Dropped: hyprpaper/swaybg/gsettings/feh and ~/.config/wall.png (nothing on
+# macOS reads it). First run asks to let the terminal control System Events.
 
-export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+# shellcheck source=../lib/common.sh
+. "$SCRIPT_DIR/../lib/common.sh"
+
+WALLPAPER_DIR="$HOME/Pictures/backgrounds"
 
 YAZI_BIN="$(command -v yazi 2>/dev/null || true)"
-
 if [[ -z "$YAZI_BIN" && -x "$HOME/.cargo/bin/yazi" ]]; then
     YAZI_BIN="$HOME/.cargo/bin/yazi"
 fi
 
-# --- macOS wallpaper changer (System Events sets every display's desktop) ---
-WALLPAPER_DIR="$HOME/Pictures/backgrounds"
 clear
-# Ensure wallpaper directory exists
 if [ ! -d "$WALLPAPER_DIR" ]; then
     mkdir -p "$WALLPAPER_DIR"
-    echo "Created $WALLPAPER_DIR directory. Please add wallpapers to this directory."
-    exit 1
+    die "Created $WALLPAPER_DIR. Add some wallpapers there and run this again."
 fi
-if [[ -z "$YAZI_BIN" ]]; then
-    echo "yazi not found. Please install yazi."
-    exit 1
-fi
-if ! command -v osascript &>/dev/null; then
-    echo "osascript not found. This wallpaper changer needs macOS."
-    exit 1
-fi
+[ -n "$YAZI_BIN" ] || die "yazi not found. Please install yazi."
 
-# Display names, one per line (first use asks to let your terminal control System Events)
-displays=()
-while IFS= read -r line; do
-    [ -n "$line" ] && displays+=("$line")
-done < <(osascript -e 'tell application "System Events" to get display name of every desktop' 2>/dev/null | tr ',' '\n' | sed 's/^[[:space:]]*//')
-if [ ${#displays[@]} -eq 0 ]; then
-    echo "No displays found. Allow your terminal to control System Events (Privacy & Security > Automation)."
-    exit 1
-fi
-
-# set_wallpaper <index|all> <file>
-set_wallpaper() {
-    local target="$1" file="$2"
-    file="${file//\"/\\\"}"
-    if [ "$target" = "all" ]; then
-        osascript -e "tell application \"System Events\" to tell every desktop to set picture to POSIX file \"$file\""
-    else
-        osascript -e "tell application \"System Events\" to tell desktop $target to set picture to POSIX file \"$file\""
-    fi
-}
-
-# Ask user for mode if multiple displays
-if [ ${#displays[@]} -gt 1 ]; then
-    if command -v gum &>/dev/null; then
-        mode=$(printf "Same wallpaper on all displays\nDifferent wallpaper for each display" | gum choose --header "Multiple displays detected. How do you want to set wallpapers?")
-    else
-        echo "Multiple displays detected."
-        echo "1) Same wallpaper on all displays"
-        echo "2) Different wallpaper for each display"
-        read -rp "Choose [1-2]: " mode_choice
-        if [ "$mode_choice" = "2" ]; then
-            mode="Different wallpaper for each display"
-        else
-            mode="Same wallpaper on all displays"
-        fi
-    fi
-else
-    mode="Same wallpaper on all displays"
-fi
-
-# Function to select a wallpaper using yazi (with image preview)
-select_wallpaper_yazi() {
-    echo "Launching yazi in $WALLPAPER_DIR..." 1>&2
+# Pick one image with yazi (image preview) -> absolute path on stdout
+select_wallpaper() {
     local chooser_file selected_file
+    echo "Launching yazi in $WALLPAPER_DIR..." >&2
     chooser_file=$(mktemp)
     "$YAZI_BIN" "$WALLPAPER_DIR" --chooser-file "$chooser_file"
-    selected_file=$(cat "$chooser_file")
-    rm -f "$chooser_file"
-    echo "yazi returned: $selected_file" 1>&2
-    # Ensure absolute path
+    selected_file=$(head -n 1 "$chooser_file")
+    command rm -f "$chooser_file"
     if [ -n "$selected_file" ] && [ "${selected_file:0:1}" != "/" ]; then
         selected_file="$WALLPAPER_DIR/$selected_file"
     fi
     echo "$selected_file"
 }
 
-if [ "$mode" = "Same wallpaper on all displays" ]; then
-    selected=$(select_wallpaper_yazi)
-    if [ -z "$selected" ]; then
-        echo "No wallpaper selected. Exiting."
-        exit 0
+choose_mode() {
+    if command_exists gum; then
+        printf "Same wallpaper on all displays\nDifferent wallpaper for each display" \
+            | gum choose --header "Multiple displays detected. How do you want to set wallpapers?"
+    else
+        local c
+        echo "Multiple displays detected."
+        echo "1) Same wallpaper on all displays"
+        echo "2) Different wallpaper for each display"
+        read -rp "Choose [1-2]: " c
+        [ "$c" = 2 ] && echo "Different wallpaper for each display" || echo "Same wallpaper on all displays"
     fi
-    set_wallpaper all "$selected"
-    echo "Wallpaper set to $selected for displays: ${displays[*]}"
-else
-    for i in "${!displays[@]}"; do
-        printf '\n--- Selecting wallpaper for display: %s ---\n' "${displays[$i]}"
-        wp=$(select_wallpaper_yazi)
-        if [ -z "$wp" ]; then
-            echo "No wallpaper selected for ${displays[$i]}. Exiting."
-            exit 0
-        fi
-        set_wallpaper $((i + 1)) "$wp"
-    done
-    echo "Wallpapers set for displays: ${displays[*]}"
-fi
-exit 0
+}
+
+# set_desktop INDEX|all FILE (System Events numbers desktops from 1)
+set_desktop() {
+    local target="desktop $1" file
+    [ "$1" = all ] && target="every desktop"
+    file=$(_px_osa_escape "$2")
+    osascript -e "tell application \"System Events\" to tell $target to set picture to POSIX file \"$file\""
+}
+
+macos_wallpaper() {
+    command_exists osascript || die "osascript not found."
+    local -a displays
+    local names
+    names=$(osascript -e 'tell application "System Events" to get display name of every desktop' 2>/dev/null)
+    mapfile -t displays < <(printf '%s\n' "${names//, /$'\n'}" | grep .)
+    [ ${#displays[@]} -gt 0 ] || die "No displays found. Allow your terminal to control System Events (Privacy & Security > Automation)."
+
+    local mode="Same wallpaper on all displays"
+    [ ${#displays[@]} -gt 1 ] && mode=$(choose_mode)
+    [ -n "$mode" ] || exit 0
+
+    local i wp
+    if [ "$mode" = "Same wallpaper on all displays" ]; then
+        wp=$(select_wallpaper)
+        [ -n "$wp" ] || { echo "No wallpaper selected."; exit 0; }
+        set_desktop all "$wp" || die "Could not set the wallpaper."
+    else
+        for i in "${!displays[@]}"; do
+            printf '\n--- Selecting wallpaper for display: %s ---\n' "${displays[$i]}"
+            wp=$(select_wallpaper)
+            [ -n "$wp" ] || { echo "No wallpaper selected for ${displays[$i]}."; exit 0; }
+            set_desktop $((i + 1)) "$wp" || die "Could not set the wallpaper for ${displays[$i]}."
+        done
+    fi
+    ok "Wallpaper set for: ${displays[*]}"
+}
+
+macos_wallpaper

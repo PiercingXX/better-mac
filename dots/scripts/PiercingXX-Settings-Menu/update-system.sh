@@ -1,51 +1,141 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # GitHub.com/PiercingXX
-# macOS port (better-mac): Homebrew, Mac App Store (mas) and softwareupdate
-# replace the distro upgrade paths, fwupd, flatpak and snap. The .bashrc and
-# ~/.scripts sync keep better-mac's macOS layers instead of overwriting them.
+#
+# Full system update: distro packages, AUR, firmware, flatpak, toolchains,
+# editor/shell plugins, then a self-update of ~/.scripts and ~/.bashrc.
+#
+# Env knobs:
+#   PX_NO_SELF_UPDATE=1   don't refresh ~/.scripts / ~/.bashrc
+#   PX_NO_SNAPSHOT=1      skip the pre-update Time Machine local snapshot
+#   PX_GITHUB_DIR=path    folder of git repos to fast-forward
+#
+# macOS port (better-mac): Homebrew (formulae + casks) is the system package
+# step; softwareupdate replaces fwupd, mas (Mac App Store) is added, Time
+# Machine local snapshots replace timeshift/snapper. ~/.scripts is an exact
+# copy of better-mac's dots/scripts, so the self-update syncs it from the
+# better-mac checkout (no GitHub API, jq or GITHUB_TOKEN); .bashrc still comes
+# from piercing-dots, wrapped in better-mac's pre/post layers. Dropped (no
+# macOS meaning): Arch news/mirrors/AUR/paru/pacnew/bootloader checks,
+# apt/dnf/zypper/xbps/apk and Ubuntu Touch upgrades, flatpak, snap, Synology
+# .deb, Hyprland builds and hyprpm, PX_AUR_NOCONFIRM.
 
-export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:$PATH"
+# Bootstrap: AeroSpace/Sol launches may only find Apple's bash 3.2, so
+# re-exec under Homebrew's bash 5.
+if [ -z "${PX_BASH_REEXEC:-}" ]; then
+    for b in /opt/homebrew/bin/bash /usr/local/bin/bash; do
+        if [ -x "$b" ]; then
+            PX_BASH_REEXEC=1
+            export PX_BASH_REEXEC
+            exec "$b" "$0" "$@"
+        fi
+    done
+    echo "This script requires Homebrew's bash (brew install bash)." >&2
+    exit 1
+fi
 
-# Define colors
-yellow='\033[1;33m'
-green='\033[0;32m'
-blue='\033[0;34m'
+# ---------------------------------------------------------------------------
+# Everything below runs under bash. The body lives in main() and the last
+# line is `main "$@"; exit $?`, so bash has parsed the whole file before any
+# of it runs and the self-update can safely replace this file.
+# ---------------------------------------------------------------------------
 
-nc='\033[0m'
+SCRIPT_PATH=$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "$0")
+SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
+GITHUB_REPO="Piercingxx/piercing-dots"
+GITHUB_BRANCH="main"
+RAW_BASE="https://raw.githubusercontent.com/$GITHUB_REPO/$GITHUB_BRANCH"
+
+# Where better-mac.sh was last run from (it records this on every run)
+BETTER_MAC_ROOT=""
+if [ -f "$HOME/.config/better-mac/root" ]; then
+    BETTER_MAC_ROOT=$(head -n 1 "$HOME/.config/better-mac/root")
+    [ -d "$BETTER_MAC_ROOT/dots/scripts" ] || BETTER_MAC_ROOT=""
+fi
+SCRIPTS_SRC="${BETTER_MAC_ROOT:+$BETTER_MAC_ROOT/dots/scripts}"
+
+# Shared helpers. ~/.scripts comes from better-mac, so restore the lib from
+# the checkout (never piercing-dots' Linux one) if it's missing.
+PX_LIB="$SCRIPT_DIR/../lib/common.sh"
+if [ ! -r "$PX_LIB" ]; then
+    if [ -n "$SCRIPTS_SRC" ] && [ -r "$SCRIPTS_SRC/lib/common.sh" ]; then
+        mkdir -p "$(dirname "$PX_LIB")"
+        cp "$SCRIPTS_SRC/lib/common.sh" "$PX_LIB"
+    else
+        echo "Missing $PX_LIB; rerun better-mac.sh to restore it." >&2
+        exit 1
+    fi
+fi
+# shellcheck disable=SC1090
+. "$PX_LIB"
 
 if [[ -d "$HOME/.cargo/bin" && ":$PATH:" != *":$HOME/.cargo/bin:"* ]]; then
     PATH="$HOME/.cargo/bin:$PATH"
 fi
-
 if [[ -d "$HOME/.local/bin" && ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
     PATH="$HOME/.local/bin:$PATH"
 fi
 
+detect_distro
 
-# Add a safe clear that works even if TERM is unknown
-safe_clear() {
-    if command -v tput >/dev/null 2>&1 && [ -n "${TERM:-}" ] && [ "$TERM" != "dumb" ] && tput clear >/dev/null 2>&1; then
-        clear
-    else
-        printf '\033c'
+INTERACTIVE=0
+[ -t 0 ] && INTERACTIVE=1
+
+# Step results for the end-of-run table
+STEP_NAMES=()
+STEP_STATUS=()
+REBOOT_REASONS=()
+SKIP=3          # step return code: not applicable, don't list it
+SKIPPED=4       # step return code: deliberately skipped, list it
+
+PX_TMP_DIR=""
+SUDO_KEEPALIVE_PID=""
+LOG_FILE=""
+
+# ---------------------------------------------------------------------------
+# Small helpers
+# ---------------------------------------------------------------------------
+
+record_step() {
+    STEP_NAMES+=("$1")
+    STEP_STATUS+=("$2")
+}
+
+# run_step "Label" func [args...]
+run_step() {
+    local label="$1" rc
+    shift
+    "$@"
+    rc=$?
+    case "$rc" in
+        0)        record_step "$label" ok ;;
+        "$SKIP")  ;;
+        "$SKIPPED") record_step "$label" skipped ;;
+        *)        record_step "$label" failed ;;
+    esac
+    return "$rc"
+}
+
+# ask_yes "Question?" Y|N  -> non-interactive runs take the default
+ask_yes() {
+    local q="$1" def="${2:-N}" reply hint="[y/N]"
+    [ "$def" = Y ] && hint="[Y/n]"
+    if [ "$INTERACTIVE" -ne 1 ]; then
+        [ "$def" = Y ]
+        return
     fi
+    read -r -p "$q $hint " reply </dev/tty
+    reply=${reply:-$def}
+    [[ "$reply" =~ ^[Yy] ]]
 }
 
-# Function to check if a command exists
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
-}
-
-# Where better-mac.sh was last run from (it records this on every run)
-better_mac_root() {
-    local root=""
-    [ -f "$HOME/.config/better-mac/root" ] && root="$(head -n 1 "$HOME/.config/better-mac/root")"
-    [ -n "$root" ] && [ -d "$root/dots" ] && printf '%s\n' "$root"
+cleanup() {
+    [ -n "$SUDO_KEEPALIVE_PID" ] && kill "$SUDO_KEEPALIVE_PID" 2>/dev/null
+    [ -n "$PX_TMP_DIR" ] && rm -rf "$PX_TMP_DIR"
 }
 
 # Reliable-ish internet check
 check_internet() {
-    local timeout=4
+    local timeout=4 url code body host
     local urls=(
         "https://connectivitycheck.gstatic.com/generate_204"
         "http://www.google.com/generate_204"
@@ -53,21 +143,18 @@ check_internet() {
         "http://www.msftconnecttest.com/connecttest.txt"
     )
     for url in "${urls[@]}"; do
-        local code
         code=$(curl -4 -fsS --max-time "$timeout" -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || true)
         if [[ "$code" == "204" ]]; then
             return 0
         fi
         if [[ "$code" == "200" && "$url" == *"msft"* ]]; then
-            local body
             body=$(curl -4 -fsS --max-time "$timeout" "$url" 2>/dev/null | tr -d '\r\n')
             if [[ "$body" == "Microsoft NCSI" || "$body" == "Microsoft Connect Test" ]]; then
                 return 0
             fi
         fi
     done
-    local hosts=(1.1.1.1 8.8.8.8 9.9.9.9)
-    for host in "${hosts[@]}"; do
+    for host in 1.1.1.1 8.8.8.8 9.9.9.9; do
         # macOS ping: -t is the overall timeout in seconds
         if ping -c 1 -t 1 "$host" >/dev/null 2>&1; then
             return 0
@@ -76,365 +163,507 @@ check_internet() {
     return 1
 }
 
-# Require internet before continuing
-if ! check_internet; then
-    echo "Internet connectivity is required to continue."
-    exit 1
-fi
+# ---------------------------------------------------------------------------
+# Self-update: ~/.scripts from the better-mac checkout, ~/.bashrc from
+# GitHub (runs last; the git step has already pulled better-mac)
+# ---------------------------------------------------------------------------
 
-# jq drives the ~/.scripts sync; better-mac installs it, but be safe
-ensure_jq() {
-    command_exists jq && return 0
-    if command_exists brew; then
-        brew install jq
-    fi
-    command_exists jq || echo -e "${yellow}jq not available; skipping ~/.scripts sync.${nc}"
+prune_backups() {
+    local pattern="$1" keep="${2:-5}" d
+    for d in "$PX_STATE_DIR"/backups/$pattern/; do
+        [ -d "$d" ] && basename "$d"
+    done | sort -r | tail -n +$((keep + 1)) \
+        | while read -r old; do rm -rf "${PX_STATE_DIR:?}/backups/$old"; done
 }
 
-# Ask for sudo password up front and keep sudo alive
-sudo -v
-( while true; do sudo -n true; sleep 300; done ) &
-sudo_keepalive_pid=$!
-trap 'kill "$sudo_keepalive_pid" 2>/dev/null' EXIT
+# Older launch-*.sh kept the host in a REMOTE= line; hosts now live in
+# ~/.config/piercingxx/remotes.conf. Carry a customized value over once.
+migrate_remote_line() {
+    local rel="$1" saved="$2" key value conf
+    [ -n "$saved" ] || return 0
+    case "$rel" in
+        Control-Scripts/launch-skippy-remote.sh) key="SKIPPY_HOST" ;;
+        Control-Scripts/launch-server-monitor.sh|Control-Scripts/launch-ollama-remote.sh) key="SERVER_HOST" ;;
+        *) return 0 ;;
+    esac
+    value=$(printf '%s' "${saved#REMOTE=}" | tr -d '"'"'")
+    [ -n "$value" ] || return 0
+    conf="${XDG_CONFIG_HOME:-$HOME/.config}/piercingxx/remotes.conf"
+    if [ -f "$conf" ] && grep -q "^$key=" "$conf"; then
+        return 0
+    fi
+    mkdir -p "$(dirname "$conf")"
+    printf '%s="%s"\n' "$key" "$value" >> "$conf"
+    say "Moved $key=$value from $rel into $conf"
+}
 
+# ~/.scripts is an exact copy of better-mac's dots/scripts
+sync_scripts() {
+    local backup="$1"
+    local local_root="$HOME/.scripts"
+    local src="$SCRIPTS_SRC"
 
-# Ensure user can force shutdown and reboot without password
-# Drop-in under sudoers.d — never append raw lines to /etc/sudoers (easy to brick sudo).
-if [ -d /etc/sudoers.d ]; then
-    sudoers_dropin="/etc/sudoers.d/piercingxx-power"
-    tmp_sudoers="$(mktemp)"
-    {
-        echo "# Managed by PiercingXX update-system.sh"
-        for cmd in /sbin/shutdown /sbin/reboot /usr/sbin/shutdown /usr/sbin/reboot; do
-            [ -x "$cmd" ] || continue
-            echo "$USER ALL=NOPASSWD: $cmd"
-        done
-    } >"$tmp_sudoers"
-    if sudo visudo -cf "$tmp_sudoers" >/dev/null 2>&1; then
-        sudo install -m 0440 -o root -g wheel "$tmp_sudoers" "$sudoers_dropin"
+    if [ -L "$local_root" ]; then
+        say "~/.scripts is a symlink (dev checkout); not overwriting it."
+        return "$SKIPPED"
+    fi
+    if [ -z "$src" ]; then
+        warn "better-mac checkout not found (~/.config/better-mac/root); skipping the scripts self-update."
+        return "$SKIPPED"
+    fi
+
+    mkdir -p "$local_root"
+    local updated=0 removed=0 rel target new saved_remote
+    while IFS= read -r rel; do
+        target="$local_root/$rel"
+        [ -L "$target" ] && continue
+        [ -f "$target" ] && cmp -s "$src/$rel" "$target" && continue
+
+        saved_remote=""
+        if [[ "$rel" == Control-Scripts/launch-*.sh && -f "$target" ]]; then
+            saved_remote=$(grep -m1 -E '^REMOTE=' "$target" || true)
+        fi
+        migrate_remote_line "$rel" "$saved_remote"
+
+        mkdir -p "$(dirname "$target")"
+        if [ -f "$target" ]; then
+            mkdir -p "$backup/scripts/$(dirname "$rel")"
+            cp -a "$target" "$backup/scripts/$rel"
+        fi
+        new="$target.px-new"
+        if ! cp "$src/$rel" "$new"; then
+            warn "Failed to copy $rel"
+            rm -f "$new"
+            return 1
+        fi
+        if [ -x "$src/$rel" ] || [ "$(head -c2 "$new")" = '#!' ]; then
+            chmod 755 "$new"
+        else
+            chmod 644 "$new"
+        fi
+        # rename() is atomic and leaves the running copy's inode alone
+        mv -f "$new" "$target"
+        rm -f "$target.upstream"
+        echo -e "${green}Updated ~/.scripts/$rel${nc}"
+        updated=$((updated + 1))
+    done < <(cd "$src" && find . -type f ! -name '.DS_Store' | sed 's|^\./||' | sort)
+
+    # Files better-mac no longer ships (kept in the backup)
+    while IFS= read -r rel; do
+        [ -e "$src/$rel" ] && continue
+        mkdir -p "$backup/scripts/$(dirname "$rel")"
+        mv -f "$local_root/$rel" "$backup/scripts/$rel"
+        echo -e "${yellow}Removed ~/.scripts/$rel${nc}"
+        removed=$((removed + 1))
+    done < <(cd "$local_root" && find . -type f ! -name '.DS_Store' ! -name '*.px-new' | sed 's|^\./||' | sort)
+
+    if [ $((updated + removed)) -gt 0 ]; then
+        ok "Updated $updated and removed $removed script(s) from $BETTER_MAC_ROOT. Previous versions: $backup/scripts"
     else
-        echo "Warning: rejected invalid sudoers drop-in; left /etc/sudoers untouched." >&2
+        ok "~/.scripts is already up to date."
     fi
-    rm -f "$tmp_sudoers"
-fi
-
-# Unified function to update all scripts in ~/.scripts from GitHub repo, recursively handling subfolders.
-# Files better-mac ships a macOS port of are skipped upstream and refreshed from the port instead.
-auto_update_scripts() {
-    local GITHUB_REPO="Piercingxx/piercing-dots"
-    local REMOTE_PATH="resources/.scripts"
-    local LOCAL_DIR="$HOME/.scripts"
-    local monitor_rel="${REMOTE_PATH}/Control-Scripts/launch-server-monitor.sh"
-    local running_script
-    running_script=$(readlink -f "${0}" 2>/dev/null || echo "${0}")
-    local bm_root ports_dir="" dropped=""
-    bm_root="$(better_mac_root)"
-    [ -n "$bm_root" ] && [ -d "$bm_root/dots/scripts" ] && ports_dir="$bm_root/dots/scripts"
-    # Scripts with no macOS meaning (better-mac's macos-drop.txt) are never fetched
-    if [ -n "$ports_dir" ] && [ -f "$ports_dir/macos-drop.txt" ]; then
-        dropped="$(sed -e 's/#.*//' -e 's/[[:space:]]*$//' "$ports_dir/macos-drop.txt" | grep -v '^$')"
-    fi
-
-    command_exists jq || return 0
-
-    # Ensure local scripts directory exists
-    mkdir -p "$LOCAL_DIR"
-
-    # Recursively fetch all files and folders from the GitHub API
-    fetch_and_sync() {
-        local api_path="$1"
-        local local_path="$2"
-        local api_url="https://api.github.com/repos/$GITHUB_REPO/contents/$api_path"
-        local items
-        items=$(curl -s "$api_url")
-        echo "$items" | jq -c '.[]' | while read -r item; do
-            local type name path download_url
-            type=$(echo "$item" | jq -r '.type')
-            name=$(echo "$item" | jq -r '.name')
-            path=$(echo "$item" | jq -r '.path')
-            download_url=$(echo "$item" | jq -r '.download_url')
-            if [[ "$type" == "dir" ]]; then
-                mkdir -p "$local_path/$name"
-                fetch_and_sync "$path" "$local_path/$name"
-            elif [[ "$type" == "file" ]]; then
-                # better-mac owns this file (macOS port, refreshed below) or drops it
-                local rel_path="${path#"$REMOTE_PATH"/}"
-                if [[ -n "$ports_dir" && -f "$ports_dir/$rel_path" ]]; then
-                    continue
-                fi
-                if [[ -n "$dropped" ]] && printf '%s\n' "$dropped" | grep -qxF "$rel_path"; then
-                    continue
-                fi
-                local tmp_file
-                tmp_file=$(mktemp)
-                if ! curl -fsSL "$download_url" -o "$tmp_file"; then
-                    echo -e "${yellow}Failed to download $path from GitHub.${nc}"
-                    rm -f "$tmp_file"
-                    continue
-                fi
-
-                # Special handling for launch-server-monitor.sh to preserve user's REMOTE line
-                local tmp_compare="$tmp_file"
-                if [[ "$path" == "$monitor_rel" && -f "$local_path/$name" ]]; then
-                    local saved_remote_line
-                    saved_remote_line=$(grep -E '^REMOTE=' "$local_path/$name" || true)
-                    if [[ -n "$saved_remote_line" ]]; then
-                        # Apply the saved REMOTE line to the temp file for comparison
-                        tmp_compare=$(mktemp)
-                        awk -v saved="$saved_remote_line" 'BEGIN{replaced=0} {if(!replaced && $0 ~ /^REMOTE=/){print saved; replaced=1; next} {print}} END{if(!replaced && saved!="") print saved}' "$tmp_file" > "$tmp_compare"
-                    fi
-                fi
-
-                # Compare using the potentially modified temp file
-                if [ ! -f "$local_path/$name" ] || ! cmp -s "$local_path/$name" "$tmp_compare"; then
-                    local target_file
-                    target_file="$local_path/$name"
-                    # Avoid overwriting the currently running script mid-execution.
-                    if [[ "$(readlink -f "$target_file" 2>/dev/null || echo "$target_file")" == "$running_script" ]]; then
-                        cp "$tmp_file" "${target_file}.upstream"
-                        chmod +x "${target_file}.upstream" 2>/dev/null || true
-                        echo -e "${yellow}Update available for running script; saved as:${nc} ${target_file}.upstream"
-                        echo -e "${yellow}Restart the script to apply it (or replace the file manually).${nc}"
-                        rm -f "$tmp_file"
-                        if [[ "$tmp_compare" != "$tmp_file" ]]; then
-                            rm -f "$tmp_compare"
-                        fi
-                        continue
-                    fi
-
-                    cp "$tmp_file" "$target_file"
-
-                    # Re-apply the saved REMOTE line to the installed file
-                    if [[ "$path" == "$monitor_rel" && -f "$local_path/$name" ]]; then
-                        local saved_remote_line
-                        saved_remote_line=$(grep -E '^REMOTE=' "$local_path/$name" 2>/dev/null || echo "REMOTE=\"dr3k@server-debian-ai\"")
-                        local tmp_preserve
-                        tmp_preserve=$(mktemp)
-                        awk -v saved="$saved_remote_line" 'BEGIN{replaced=0} {if(!replaced && $0 ~ /^REMOTE=/){print saved; replaced=1; next} {print}} END{if(!replaced && saved!="") print saved}' "$local_path/$name" > "$tmp_preserve" && mv "$tmp_preserve" "$local_path/$name"
-                    fi
-
-                    chmod +x "$local_path/$name"
-                    echo -e "${green}Updated $path${nc}"
-                fi
-
-                # Clean up temp files
-                rm -f "$tmp_file"
-                if [[ "$tmp_compare" != "$tmp_file" ]]; then
-                    rm -f "$tmp_compare"
-                fi
-            fi
-        done
-    }
-
-    fetch_and_sync "$REMOTE_PATH" "$LOCAL_DIR"
-
-    # Refresh better-mac's macOS ports (git pull better-mac to update them)
-    if [ -n "$ports_dir" ]; then
-        local port rel target
-        while IFS= read -r port; do
-            rel="${port#"$ports_dir"/}"
-            [ "$rel" = "macos-drop.txt" ] && continue
-            target="$LOCAL_DIR/$rel"
-            if [ ! -f "$target" ] || ! cmp -s "$port" "$target"; then
-                if [[ "$(readlink -f "$target" 2>/dev/null || echo "$target")" == "$running_script" ]]; then
-                    cp "$port" "${target}.upstream"
-                    echo -e "${yellow}Update available for running script; saved as:${nc} ${target}.upstream"
-                    continue
-                fi
-                mkdir -p "$(dirname "$target")"
-                cp "$port" "$target"
-                chmod +x "$target"
-                echo -e "${green}Updated $rel (better-mac)${nc}"
-            fi
-        done < <(find "$ports_dir" -type f)
-    fi
-    echo -e "${green}All scripts checked and updated if needed!${nc}"
 }
 
-
-# Update .bashrc from GitHub, keeping better-mac's macOS layers around it
 update_bashrc() {
-    local REMOTE_URL="https://raw.githubusercontent.com/Piercingxx/piercing-dots/main/resources/bash/.bashrc"
-    local TMP_FILE NEW_FILE
-    TMP_FILE=$(mktemp)
-    NEW_FILE=$(mktemp)
-    if ! curl -fsSL "$REMOTE_URL" -o "$TMP_FILE"; then
-        echo -e "${yellow}Failed to download .bashrc from GitHub.${nc}"
-        rm -f "$TMP_FILE" "$NEW_FILE"
+    local backup="$1" new raw
+    if [ -L "$HOME/.bashrc" ]; then
+        say "~/.bashrc is a symlink; not overwriting it."
+        return "$SKIPPED"
+    fi
+    raw="$PX_TMP_DIR/bashrc"
+    if ! curl -fsSL --max-time 30 "$RAW_BASE/resources/bash/.bashrc" -o "$raw"; then
+        warn "Failed to download .bashrc from GitHub."
         return 1
     fi
     # Same layout better-mac's shell module writes: pre.bash + .bashrc + post.bash
+    new="$HOME/.bashrc.px-new"
+    # shellcheck disable=SC2016
     {
         printf '%s\n' '# better-mac: Homebrew and GNU tools first (see ~/.config/better-mac/pre.bash)'
         printf '%s\n\n' '[ -f "$HOME/.config/better-mac/pre.bash" ] && . "$HOME/.config/better-mac/pre.bash"'
-        cat "$TMP_FILE"
+        cat "$raw"
         printf '\n%s\n' '# better-mac: macOS replacements for Linux-only bits (see ~/.config/better-mac/post.bash)'
         printf '%s\n' '[ -f "$HOME/.config/better-mac/post.bash" ] && . "$HOME/.config/better-mac/post.bash"'
-    } >"$NEW_FILE"
-    if ! cmp -s "$HOME/.bashrc" "$NEW_FILE"; then
-        cp "$NEW_FILE" "$HOME/.bashrc"
-        echo -e "${green}.bashrc has been updated.${nc}"
+    } >"$new"
+    if [ -f "$HOME/.bashrc" ] && cmp -s "$HOME/.bashrc" "$new"; then
+        rm -f "$new"
+        return 0
     fi
-    rm -f "$TMP_FILE" "$NEW_FILE"
+    if [ -f "$HOME/.bashrc" ]; then
+        mkdir -p "$backup"
+        cp -a "$HOME/.bashrc" "$backup/.bashrc"
+    fi
+    chmod 644 "$new"
+    mv -f "$new" "$HOME/.bashrc"
+    ok ".bashrc has been updated. Previous version: $backup/.bashrc"
+}
+
+self_update() {
+    if [ "${PX_NO_SELF_UPDATE:-0}" = 1 ]; then
+        say "PX_NO_SELF_UPDATE=1: leaving ~/.scripts and ~/.bashrc alone."
+        return "$SKIP"
+    fi
+    local backup
+    backup="$PX_STATE_DIR/backups/scripts-$(date +%Y%m%d-%H%M%S)"
+    run_step "Scripts self-update" sync_scripts "$backup"
+    run_step ".bashrc update" update_bashrc "$backup"
+    prune_backups 'scripts-*' 5
+}
+
+# ---------------------------------------------------------------------------
+# Snapshots (Time Machine) and macOS updates
+# ---------------------------------------------------------------------------
+
+# Local APFS snapshot; only useful when Time Machine is set up
+pre_update_snapshot() {
+    [ "${PX_NO_SNAPSHOT:-0}" = 1 ] && return "$SKIP"
+    tmutil destinationinfo >/dev/null 2>&1 || return "$SKIP"
+    say "Creating a Time Machine local snapshot before updating..."
+    tmutil localsnapshot
+}
+
+# Homebrew formulae and casks (the system package step on macOS)
+brew_upgrade() {
+    [ "$PKG" = brew ] || { err "Homebrew not found (https://brew.sh)."; return 1; }
+    say "Updating Homebrew..."
+    # Unused dependencies and old versions are removed by Clean System, not here
+    HOMEBREW_NO_ASK=1 brew update && HOMEBREW_NO_ASK=1 brew upgrade
+}
+
+update_mas() {
+    command_exists mas || return "$SKIP"
+    say "Updating App Store apps (mas)..."
+    mas upgrade
+}
+
+# macOS and firmware updates (fwupd's job on Linux)
+update_macos() {
+    local list
+    say "Checking for macOS updates..."
+    list=$(softwareupdate -l 2>&1)
+    if ! printf '%s\n' "$list" | grep -q '^\* Label:'; then
+        ok "No macOS updates."
+        return 0
+    fi
+    printf '%s\n' "$list" | grep -E '^\* Label:|Title:'
+    # Only updates within the running major version; `-ia` would also
+    # start a major macOS upgrade
+    local major labels=() restart=0 label ver act title
+    major=$(sw_vers -productVersion | cut -d. -f1)
+    while IFS=$'\t' read -r label ver act title; do
+        if [[ "$title" == macOS* && "${ver%%.*}" != "$major" ]]; then
+            continue
+        fi
+        labels+=("$label")
+        [ "$act" = restart ] && restart=1
+    done < <(printf '%s\n' "$list" | awk '
+        /^\* Label: / { sub(/^\* Label: /, ""); label = $0; next }
+        label != "" && /Title:/ {
+            v = ""; a = ""; t = ""
+            if (match($0, /Title: [^,]*/))   t = substr($0, RSTART + 7, RLENGTH - 7)
+            if (match($0, /Version: [^,]*/)) v = substr($0, RSTART + 9, RLENGTH - 9)
+            if (match($0, /Action: [^,]*/))  a = substr($0, RSTART + 8, RLENGTH - 8)
+            print label "\t" v "\t" a "\t" t; label = ""
+        }')
+    if [ ${#labels[@]} -eq 0 ]; then
+        say "Only a major macOS upgrade is available; start it from System Settings > General > Software Update."
+        return "$SKIPPED"
+    fi
+    if ! ask_yes "Install ${#labels[@]} macOS update(s) now? (some need a restart)" N; then
+        say "Install later from System Settings > General > Software Update."
+        return "$SKIPPED"
+    fi
+    sudo softwareupdate -i "${labels[@]}" || return 1
+    [ "$restart" -eq 1 ] && REBOOT_REASONS+=("macOS updates were installed")
     return 0
 }
 
-# Homebrew formulae + casks, Mac App Store, macOS itself
-macos_upgrade() {
-    if command_exists brew; then
-        echo -e "${yellow}Updating Homebrew (brew)...${nc}"
-        brew update && brew upgrade || return 1
-        brew autoremove || true
-        brew cleanup || true
-    else
-        echo -e "${yellow}Homebrew not found; skipping package upgrades.${nc}"
-    fi
-    if command_exists mas; then
-        echo -e "${yellow}Updating App Store apps (mas)...${nc}"
-        mas upgrade || true
-    fi
-    # macOS and firmware updates (fwupd's job on Linux)
-    echo -e "${yellow}Checking for macOS updates...${nc}"
-    local su_list
-    su_list=$(softwareupdate -l 2>&1 || true)
-    printf '%s\n' "$su_list"
-    if printf '%s\n' "$su_list" | grep -q '^\* Label:'; then
-        if ! command_exists gum || gum confirm "Install macOS updates now? (some need a restart)"; then
-            sudo softwareupdate -ia || true
-        fi
-    fi
+# ---------------------------------------------------------------------------
+# Universal steps (each gated on the tool existing)
+# ---------------------------------------------------------------------------
+
+update_npm_globals() {
+    command_exists npm || return "$SKIP"
+    local prefix
+    prefix=$(npm config get prefix 2>/dev/null || true)
+    case "$prefix" in
+        /usr|""|undefined)
+            say "Skipping global npm update: npm prefix is $prefix."
+            return "$SKIP" ;;
+        *)
+            # Homebrew's node keeps globals in a user-writable prefix
+            say "Updating global npm packages ($prefix)..."
+            npm update -g --silent --no-progress ;;
+    esac
 }
 
-# Universal update logic
-universal_update() {
-# Update Neovim plugins (vim.pack — not Lazy.nvim)
-    if command_exists nvim; then
-        nvim --headless "+lua pcall(vim.pack.update)" "+quitall!" 2>/dev/null || true
+update_cargo() {
+    command_exists cargo || return "$SKIP"
+    [ -n "$(cargo install --list 2>/dev/null)" ] || return "$SKIP"
+    say "Updating cargo-installed binaries..."
+    if ! cargo install-update --version >/dev/null 2>&1; then
+        cargo install cargo-update || return 1
     fi
-    echo -e "${yellow}Be Patient...${nc}"
-# Update npm (Homebrew's node keeps globals in a user-writable prefix)
-    if command_exists npm; then
-        npm update -g --silent --no-progress || true
+    cargo install-update -a
+}
+
+update_rustup() {
+    command_exists rustup || return "$SKIP"
+    rustup toolchain list 2>/dev/null | grep -qv 'no installed toolchains' || return "$SKIP"
+    say "Updating Rust toolchains (rustup)..."
+    rustup update
+}
+
+update_pipx() {
+    command_exists pipx || return "$SKIP"
+    [ -n "$(pipx list --short 2>/dev/null)" ] || return "$SKIP"
+    say "Updating pipx apps..."
+    pipx upgrade-all
+}
+
+update_uv_tools() {
+    command_exists uv || return "$SKIP"
+    uv tool list 2>/dev/null | grep -q . || return "$SKIP"
+    uv tool list 2>/dev/null | grep -q 'No tools installed' && return "$SKIP"
+    say "Updating uv tools..."
+    uv tool upgrade --all
+}
+
+update_gh_extensions() {
+    command_exists gh || return "$SKIP"
+    [ -n "$(gh extension list 2>/dev/null)" ] || return "$SKIP"
+    say "Updating gh extensions..."
+    gh extension upgrade --all
+}
+
+update_docker_images() {
+    command_exists docker || return "$SKIP"
+    docker info >/dev/null 2>&1 || return "$SKIP"
+    local -a images
+    mapfile -t images < <(docker images --format '{{.Repository}}:{{.Tag}}' | grep -v '<none>' | sort -u)
+    [ ${#images[@]} -gt 0 ] || return "$SKIP"
+    say "Pulling ${#images[@]} Docker image(s)..."
+    local img
+    for img in "${images[@]}"; do
+        echo "  • ${img}"
+        # Locally built images have no registry copy; that's fine
+        docker pull --quiet "$img" >/dev/null 2>&1 || echo "    (not pulled)"
+    done
+    say "Unused images and stopped containers are cleaned from Clean System."
+    return 0
+}
+
+update_yazi() {
+    command_exists ya || return "$SKIP"
+    local cfg="$HOME/.config/yazi/package.toml" rc=0 tmp
+    say "Updating yazi plugins..."
+    if [ -f "$cfg" ]; then
+        # BSD sed -i needs a suffix argument; edit through a temp file instead
+        tmp="$PX_TMP_DIR/package.toml"
+        sed -e 's/system-clipboard\.yazi/system-clipboard-yazi/g' "$cfg" >"$tmp" \
+            && ! cmp -s "$tmp" "$cfg" && cat "$tmp" >"$cfg"
     fi
-# Update cargo
-    if command_exists cargo; then
-        echo -e "${yellow}Updating cargo...${nc}"
-        if cargo install-update --version >/dev/null 2>&1; then
-            cargo install-update -a
-        else
-            cargo install cargo-update
-            cargo install-update -a
-        fi
-    fi
-# Update Docker images
-    if command_exists docker && docker info >/dev/null 2>&1; then
-        echo -e "${yellow}Updating Docker images...${nc}"
-        # Images/containers only — never wipe volumes unless explicitly requested.
-        docker system prune -af
-        local images=() img
-        while IFS= read -r img; do
-            images+=("$img")
-        done < <(docker images --format '{{.Repository}}:{{.Tag}}' | grep -v '<none>')
-        echo -e "${yellow}Updating ${#images[@]} Docker image(s)...${nc}"
-        for img in "${images[@]}"; do
-            echo -e "  • ${img}"
-            docker pull "$img" 2>/dev/null
+    ya pkg upgrade || rc=1
+    if [ -f "$cfg" ]; then
+        local -a desired installed
+        local plugin
+        mapfile -t desired < <(grep '^use = ' "$cfg" | sed -E 's/use = "(.*)"/\1/' | sort)
+        mapfile -t installed < <(ya pkg list 2>/dev/null | awk '{print $1}' | sort)
+        for plugin in "${desired[@]}"; do
+            if ! printf '%s\n' "${installed[@]}" | grep -qx "$plugin"; then
+                say "Adding missing yazi plugin: $plugin"
+                ya pkg add "$plugin" || rc=1
+            fi
         done
     fi
-# Update yazi && its plugins
-    if command_exists yazi; then
-        echo -e "${yellow}Updating yazi...${nc}"
-        if command_exists ya; then
-            YAZI_CONFIG_DIR="$HOME/.config/yazi"
-            YAZI_CONFIG="$YAZI_CONFIG_DIR/package.toml"
-            # Fix common package.toml issues before upgrade
-            if [ -f "$YAZI_CONFIG" ]; then
-                local yazi_tmp
-                yazi_tmp=$(mktemp)
-                sed -e 's/system-clipboard\.yazi/system-clipboard-yazi/g' "$YAZI_CONFIG" >"$yazi_tmp" \
-                    && ! cmp -s "$yazi_tmp" "$YAZI_CONFIG" && cat "$yazi_tmp" >"$YAZI_CONFIG"
-                rm -f "$yazi_tmp"
-            fi
-            # Skip upgrade if legacy header exists to avoid parse abort
-            if [ -f "$YAZI_CONFIG" ] && grep -q '^\[\[plugin\.deps\]\]' "$YAZI_CONFIG"; then
-                echo -e "${yellow}Yazi package.toml has legacy [[plugin.deps]]; skipping 'ya pkg upgrade'.${nc}"
-            else
-                ya pkg upgrade || true
-            fi
-            if [ -f "$YAZI_CONFIG" ]; then
-                local installed_plugins plugin
-                installed_plugins=$(ya pkg list 2>/dev/null | awk '{print $1}' | sort)
-                while IFS= read -r plugin; do
-                    [ -n "$plugin" ] || continue
-                    if ! printf '%s\n' "$installed_plugins" | grep -qx "$plugin"; then
-                        echo -e "${yellow}Adding missing yazi plugin: $plugin${nc}"
-                        ya pkg add "$plugin" || true
-                    fi
-                done < <(grep '^use = ' "$YAZI_CONFIG" | sed -E "s/use = \"(.*)\"/\1/" | sort)
-            fi
-        fi
-    fi
-# Update ClamAV virus definitions
-    if command_exists freshclam; then
-        echo -e "${yellow}Updating ClamAV virus definitions...${nc}"
-        # Skip if a freshclam service is already running (lock conflicts)
-        if pgrep -x freshclam >/dev/null 2>&1; then
-            echo -e "${yellow}freshclam is already running; skipping manual update.${nc}"
-        else
-            freshclam || true
-        fi
-    fi
+    return "$rc"
 }
 
-# Function to git pull all repos in /media/Working-Storage/GitHub
-git_pull_all_github_repos() {
-    if ! command_exists git; then
+update_nvim_plugins() {
+    command_exists nvim || return "$SKIP"
+    [ -d "${XDG_CONFIG_HOME:-$HOME/.config}/nvim" ] || return "$SKIP"
+    say "Updating Neovim plugins (vim.pack)..."
+    # force=true applies updates directly instead of opening the review buffer
+    nvim --headless \
+        "+lua if vim.pack and vim.pack.update then local ok, e = pcall(vim.pack.update, nil, { force = true }); if not ok then io.stderr:write(tostring(e) .. '\n'); vim.cmd('cquit 1') end end" \
+        "+qa" 2>&1
+}
+
+update_clamav() {
+    command_exists freshclam || return "$SKIP"
+    local vs="$SCRIPT_DIR/virus-scan.sh"
+    if [ -f "$vs" ] && grep -q -- '--update-db' "$vs"; then
+        bash "$vs" --update-db
         return
     fi
-    # Allow override, then fall back to common locations
-    local base_dir="${PX_GITHUB_DIR:-/media/Working-Storage/GitHub}"
+    if svc_is_active clamav; then
+        say "The ClamAV service keeps definitions current; skipping."
+        return 0
+    fi
+    # Homebrew's ClamAV database is user-owned; no sudo
+    say "Updating ClamAV virus definitions..."
+    freshclam
+}
+
+# Fast-forward every clean repo in the GitHub folder
+git_pull_all_github_repos() {
+    command_exists git || return "$SKIP"
+    local base_dir="${PX_GITHUB_DIR:-$PX_WORK_ROOT/GitHub}" alt repo name
     if [ ! -d "$base_dir" ]; then
-        for alt in "$HOME/GitHub" "$HOME/Projects" "$HOME/Workspace" "$HOME/src"; do
+        # The folder holding the better-mac checkout is the usual one on the Mac
+        for alt in ${BETTER_MAC_ROOT:+"$(dirname "$BETTER_MAC_ROOT")"} \
+            "$HOME/GitHub" "$HOME/Projects" "$HOME/Workspace" "$HOME/src"; do
             if [ -d "$alt" ]; then
                 base_dir="$alt"
                 break
             fi
         done
     fi
-    if [ ! -d "$base_dir" ]; then
-        # Only show warning if running interactively
-        if [ -t 1 ]; then
-            echo -e "${yellow}GitHub directory not found. Set PX_GITHUB_DIR to override.${nc}"
-        fi
-        return
-    fi
-    echo -e "${blue}Updating all GitHub repositories in $base_dir...${nc}"
+    [ -d "$base_dir" ] || return "$SKIP"
+
+    say "Updating git repositories in $base_dir..."
+    local -a updated=() dirty=() failed=() noupstream=()
     for repo in "$base_dir"/*; do
-        if [ -d "$repo/.git" ]; then
-            echo -e "${green}Updating $(basename "$repo")...${nc}"
-            (cd "$repo" && git pull --ff-only)
+        [ -d "$repo/.git" ] || continue
+        name=$(basename "$repo")
+        if ! git -C "$repo" rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1; then
+            noupstream+=("$name")
+            continue
+        fi
+        if [ -n "$(git -C "$repo" status --porcelain --untracked-files=no 2>/dev/null)" ]; then
+            dirty+=("$name")
+            continue
+        fi
+        if GIT_TERMINAL_PROMPT=0 git -C "$repo" pull --ff-only --quiet 2>/dev/null; then
+            updated+=("$name")
+        else
+            failed+=("$name")
         fi
     done
-    echo -e "${green}All GitHub repositories updated!${nc}"
+    ok "  ${#updated[@]} repo(s) up to date."
+    [ ${#dirty[@]} -gt 0 ] && warn "  Skipped (local changes): ${dirty[*]}"
+    [ ${#noupstream[@]} -gt 0 ] && say "  No upstream branch: ${noupstream[*]}"
+    [ ${#failed[@]} -gt 0 ] && warn "  Could not fast-forward: ${failed[*]}"
+    [ ${#failed[@]} -eq 0 ]
 }
 
+universal_steps() {
+    run_step "macOS (softwareupdate)" update_macos
+    run_step "App Store (mas)" update_mas
+    run_step "npm globals" update_npm_globals
+    run_step "Cargo binaries" update_cargo
+    run_step "Rust toolchains" update_rustup
+    run_step "pipx apps" update_pipx
+    run_step "uv tools" update_uv_tools
+    run_step "gh extensions" update_gh_extensions
+    run_step "Docker images" update_docker_images
+    run_step "Yazi plugins" update_yazi
+    run_step "Neovim plugins" update_nvim_plugins
+    run_step "ClamAV definitions" update_clamav
+    run_step "Git repositories" git_pull_all_github_repos
+}
 
-echo -e "${green}Starting system update...${nc}\n"
-    ensure_jq
-    update_bashrc
-    auto_update_scripts
-    git_pull_all_github_repos
+# ---------------------------------------------------------------------------
+# Summary
+# ---------------------------------------------------------------------------
 
-if macos_upgrade; then
-    universal_update
-else
-    echo -e "${yellow}Homebrew upgrade failed; skipping remaining update steps.${nc}"
-    exit 1
-fi
+print_summary() {
+    local i mark failures=0
+    echo
+    echo -e "${blue}Update summary${nc}"
+    for i in "${!STEP_NAMES[@]}"; do
+        case "${STEP_STATUS[$i]}" in
+            ok)      mark="${green}ok${nc}" ;;
+            skipped) mark="${yellow}skipped${nc}" ;;
+            *)       mark="${red}FAILED${nc}"; failures=$((failures + 1)) ;;
+        esac
+        printf '  %-28s %b\n' "${STEP_NAMES[$i]}" "$mark"
+    done
+    if [ ${#REBOOT_REASONS[@]} -gt 0 ]; then
+        echo
+        warn "Reboot recommended:"
+        printf '  - %s\n' "${REBOOT_REASONS[@]}" | sort -u
+    fi
+    echo
+    say "Full log: $LOG_FILE"
+    return "$failures"
+}
 
-osascript -e 'display notification "System update completed successfully!" with title "System Update"' >/dev/null 2>&1 || true
-echo -e "${green}System Updated Successfully!${nc}"
-if [ -n "${sudo_keepalive_pid:-}" ]; then
-    kill "$sudo_keepalive_pid" 2>/dev/null
-fi
-exit 0
+notify_result() {
+    local core_rc="$1" failures="$2" summary body urgency=normal
+    if [ "$core_rc" -ne 0 ]; then
+        summary="System update failed"
+        body="The package upgrade did not complete. Log: $LOG_FILE"
+        urgency=critical
+    elif [ "$failures" -gt 0 ]; then
+        summary="System update finished with problems"
+        body="$failures step(s) failed. Log: $LOG_FILE"
+    else
+        summary="System update complete"
+        body="Everything is up to date."
+    fi
+    if [ ${#REBOOT_REASONS[@]} -gt 0 ]; then
+        body="$body Reboot recommended."
+    fi
+    notify_replace system-update "$urgency" 10000 software-update-available "$summary" "$body"
+}
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+main() {
+    PX_TMP_DIR=$(mktemp -d)
+    trap cleanup EXIT
+    trap 'exit 130' INT TERM
+
+    # Persistent log (ANSI colors stripped in the file; BSD sed has no \x1b)
+    mkdir -p "$PX_STATE_DIR/logs"
+    LOG_FILE="$PX_STATE_DIR/logs/update-$(date +%Y%m%d-%H%M%S).log"
+    exec > >(tee >(sed -u $'s/\033\\[[0-9;?]*[A-Za-z]//g' >> "$LOG_FILE")) 2>&1
+    find "$PX_STATE_DIR/logs" -name 'update-*.log' -mtime +30 -delete 2>/dev/null
+
+    # One update at a time (update-notify.sh also checks this lock)
+    if ! single_instance update-system; then
+        err "Another system update is already running."
+        exit 1
+    fi
+
+    if ! check_internet; then
+        err "Internet connectivity is required to continue."
+        exit 1
+    fi
+
+    # softwareupdate and Docker/ClamAV helpers may need sudo
+    sudo -v || { err "sudo authentication failed."; exit 1; }
+    # Drop the log pipe so a lingering sleep can't hold it after we exit
+    ( exec >/dev/null 2>&1
+      while kill -0 "$$" 2>/dev/null; do sudo -n true; sleep 60; done ) &
+    SUDO_KEEPALIVE_PID=$!
+
+    echo -e "${green}Starting system update (macOS $(sw_vers -productVersion 2>/dev/null))...${nc}\n"
+
+    local core_rc=0
+    run_step "Pre-update snapshot" pre_update_snapshot
+    run_step "System packages (Homebrew)" brew_upgrade || core_rc=1
+
+    if [ "$core_rc" -eq 0 ]; then
+        universal_steps
+        self_update
+    else
+        warn "Skipping the remaining steps because the package upgrade failed."
+    fi
+
+    local failures
+    print_summary
+    failures=$?
+    notify_result "$core_rc" "$failures"
+
+    if [ "$core_rc" -ne 0 ]; then
+        return 1
+    fi
+    ok "System update finished."
+    return 0
+}
+
+main "$@"; exit $?

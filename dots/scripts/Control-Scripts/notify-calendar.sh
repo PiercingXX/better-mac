@@ -1,41 +1,36 @@
 #!/usr/bin/env bash
 # GitHub.com/PiercingXX
-# Show this week of the month as a notification (⌥⇧P). macOS port.
-# A macOS notification can't fit the whole `cal` grid, so it shows the month,
-# week number and the current week with today in brackets.
-#   --open   also open Calendar.app on today
+# Show this month's calendar in a notification.
+# macOS port (better-mac): a Notification Center banner can't fit (or
+# monospace) the `cal` grid, so it shows the month, week number and this
+# week with today in brackets; the full `cal` grid is printed when run from
+# a terminal. Notifications go through osascript instead of notify-send.
+#   --open   also open Calendar.app
 
-export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+# shellcheck disable=SC1091
+. "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../lib/common.sh"
 
 MONTH_TITLE="$(date '+%B %Y') · week $(date '+%U' | sed 's/^0//')"
 
-# day_offset <n> <format>: date n days from today (BSD date, GNU fallback)
-day_offset() {
-    date -v"${1}"d "+$2" 2>/dev/null || date -d "${1} day" "+$2"
-}
-
-dow="$(date '+%w')"    # 0 = Sunday, same week layout as `cal`
-week=""
+# This week, Sunday first like `cal`. /bin/date: -v is BSD-only and GNU
+# coreutils may be first on PATH
+dow=$(date '+%w')
+CAL_BODY=""
 for i in 0 1 2 3 4 5 6; do
     off=$(( i - dow ))
     [ "$off" -ge 0 ] && off="+$off"
-    day="$(day_offset "$off" '%a %e' | tr -s ' ')"
+    day=$(/bin/date -v"${off}"d '+%a %e' | tr -s ' ')
     day="${day% }"
-    if [ "$i" -eq "$dow" ]; then
-        day="[$day]"
-    fi
-    week="${week:+$week  }$day"
+    [ "$i" -eq "$dow" ] && day="[$day]"
+    CAL_BODY="${CAL_BODY:+$CAL_BODY  }$day"
 done
 
-# notify <title> <body>
-notify() {
-    local title="${1//\\/\\\\}" body="${2//\\/\\\\}"
-    title="${title//\"/\\\"}"
-    body="${body//\"/\\\"}"
-    osascript -e "display notification \"$body\" with title \"$title\"" >/dev/null 2>&1
-}
-
-notify "$MONTH_TITLE" "$week" || printf '%s\n%s\n' "$MONTH_TITLE" "$week"
+if command_exists osascript; then
+    notify_replace calendar low 6000 x-office-calendar "$MONTH_TITLE" "$CAL_BODY"
+fi
+if [ -t 1 ] || ! command_exists osascript; then
+    if command_exists cal; then cal; else printf '%s\n%s\n' "$MONTH_TITLE" "$CAL_BODY"; fi
+fi
 
 if [ "${1:-}" = "--open" ]; then
     open -a Calendar

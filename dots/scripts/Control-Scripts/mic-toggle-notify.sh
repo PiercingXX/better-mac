@@ -1,35 +1,36 @@
 #!/usr/bin/env bash
 # GitHub.com/PiercingXX
-# Toggle microphone mute and show notification. macOS port: macOS has no
-# input mute, so this sets the input volume to 0 and restores it after.
+# Toggle microphone mute and show the shared on-screen bubble.
+# Bound to XF86AudioMicMute in the WM configs.
+# macOS port (better-mac): CoreAudio has no scriptable input mute, so this
+# sets the input volume to 0 and restores the saved level on unmute
+# (osascript instead of wpctl/pactl). The bubble is a notification (osd).
 
-export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+# shellcheck disable=SC1091
+. "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../lib/common.sh"
 
-STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/mic-toggle"
-STATE_FILE="$STATE_DIR/volume"
-mkdir -p "$STATE_DIR"
+STATE_FILE="$PX_STATE_DIR/mic-volume"
 
-# notify <title> <body>
-notify() {
-    local title="${1//\\/\\\\}" body="${2//\\/\\\\}"
-    title="${title//\"/\\\"}"
-    body="${body//\"/\\\"}"
-    osascript -e "display notification \"$body\" with title \"$title\"" >/dev/null 2>&1
-}
-
-current="$(osascript -e 'input volume of (get volume settings)' 2>/dev/null)"
+current=$(osascript -e 'input volume of (get volume settings)' 2>/dev/null)
 if ! [[ "$current" =~ ^[0-9]+$ ]]; then
-    echo "mic-toggle-notify: no input device." >&2
+    notify_replace mic normal 3000 dialog-error "Microphone" "No input device found."
     exit 1
 fi
 
 if (( current > 0 )); then
-    echo "$current" >"$STATE_FILE"
+    mkdir -p "$PX_STATE_DIR"
+    echo "$current" > "$STATE_FILE"
     osascript -e 'set volume input volume 0'
-    notify "Microphone muted" "Input disabled"
+    muted=yes
 else
-    restore="$(cat "$STATE_FILE" 2>/dev/null)"
+    restore=$(cat "$STATE_FILE" 2>/dev/null)
     [[ "$restore" =~ ^[0-9]+$ ]] && (( restore > 0 )) || restore=75
     osascript -e "set volume input volume $restore"
-    notify "Microphone unmuted" "Input enabled"
+    muted=no
+fi
+
+if [ "$muted" = yes ]; then
+    osd microphone-sensitivity-muted "Microphone muted" 0
+else
+    osd audio-input-microphone "Microphone on" "${restore:-100}"
 fi

@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 # GitHub.com/PiercingXX
-# Toggle the top bar (⌥R). macOS port: the bar is SketchyBar, and AeroSpace's
-# top gap follows it (44 with the bar, 10 without) so windows reclaim the space.
-# The on/off choice survives logins:
-#   toggle-topbar.sh            toggle and remember
-#   toggle-topbar.sh --startup  re-apply the remembered state at login
+# Toggle the top bar (⌥R).
+# --startup restores the last on/off state at login.
+# macOS port (better-mac): the bar is SketchyBar, run by brew services, so
+# "off" means `--bar hidden=on` instead of killing the process. waybar,
+# polybar and the per-session bar memory are dropped (one bar, one session).
+# SketchyBar sits in the notch strip, which macOS keeps windows out of either
+# way, so AeroSpace's top gap stays 5 with or without it.
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}"
 STATE_FILE="$STATE_DIR/topbar/state"
 TOML="$HOME/.config/aerospace/aerospace.toml"
-GAP_WITH_BAR="${TOPBAR_GAP_ON:-44}"
-GAP_WITHOUT_BAR="${TOPBAR_GAP_OFF:-10}"
+GAP_WITH_BAR="${TOPBAR_GAP_ON:-5}"
+GAP_WITHOUT_BAR="${TOPBAR_GAP_OFF:-5}"
 
 mkdir -p "$STATE_DIR/topbar"
 
@@ -31,6 +33,27 @@ write_state() {
 # bar_hidden: prints on/off, or nothing if SketchyBar isn't answering
 bar_hidden() {
     sketchybar --query bar 2>/dev/null | sed -n 's/.*"hidden"[[:space:]]*:[[:space:]]*"\([a-z]*\)".*/\1/p' | head -n1
+}
+
+# wait_for_bar <seconds>: SketchyBar may still be starting (login, restart)
+wait_for_bar() {
+    local i
+    for ((i = 0; i < $1; i++)); do
+        [ -n "$(bar_hidden)" ] && return 0
+        sleep 1
+    done
+    [ -n "$(bar_hidden)" ]
+}
+
+# start_bar: SketchyBar isn't running at all (upstream starts waybar/polybar)
+start_bar() {
+    command -v sketchybar >/dev/null 2>&1 || return 1
+    if command -v brew >/dev/null 2>&1; then
+        brew services restart sketchybar >"$STATE_DIR/topbar/sketchybar.log" 2>&1
+    else
+        nohup sketchybar >"$STATE_DIR/topbar/sketchybar.log" 2>&1 &
+    fi
+    wait_for_bar 10
 }
 
 # set_gap <n>: rewrite a plain `gaps.outer.top = N` line and reload AeroSpace.
@@ -60,14 +83,18 @@ hide_bar() {
     write_state off
 }
 
+startup_mode=false
+if [ "${1:-}" = "--startup" ]; then
+    startup_mode=true
+fi
+
 read_state
 
-if [ "${1:-}" = "--startup" ]; then
-    # SketchyBar may still be starting at login
-    for _ in 1 2 3 4 5 6 7 8 9 10; do
-        [ -n "$(bar_hidden)" ] && break
-        sleep 1
-    done
+if [ "$startup_mode" = true ]; then
+    if ! wait_for_bar 10; then
+        [ "$LAST_ENABLED" = "off" ] && exit 0
+        start_bar || exit 0
+    fi
     if [ "$LAST_ENABLED" = "off" ]; then
         hide_bar
     else
@@ -76,7 +103,15 @@ if [ "${1:-}" = "--startup" ]; then
     exit 0
 fi
 
-if [ "$(bar_hidden)" = "on" ]; then
+current="$(bar_hidden)"
+
+# Nothing running: start it shown, like upstream starting a bar
+if [ -z "$current" ]; then
+    start_bar && show_bar
+    exit 0
+fi
+
+if [ "$current" = "on" ]; then
     show_bar
 else
     hide_bar
