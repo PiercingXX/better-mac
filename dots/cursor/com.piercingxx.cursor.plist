@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- GitHub.com/PiercingXX: piercing-cursor at login (modules/wm.sh fills in @HOME@) -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.piercingxx.cursor</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>@HOME@/.local/bin/piercing-cursor</string>
+        <string>@HOME@/.local/share/piercing-cursor</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>LimitLoadToSessionType</key>
+    <string>Aqua</string>
+    <key>ProcessType</key>
+    <string>Interactive</string>
+</dict>
+</plist>

@@ -218,6 +218,8 @@ dots/
 ├── sketchybar/          sketchybarrc + plugins (workspaces, app, clock, layout, volume, battery)
 ├── borders/bordersrc
 ├── karabiner/           Option-tap launcher, Caps/Backspace, Piercing arrows
+├── gestures/            piercing-gestures: Hyprland touchpad swipes (Swift, launchd)
+├── cursor/              piercing-cursor: Black-Minimalistic cursor theme (Swift, launchd)
 ├── bash/                pre.bash, post.bash, bash_profile
 ├── kitty/macos.conf
 ├── tmux/macos.sed
@@ -228,8 +230,9 @@ dots/
 ## Not possible on macOS
 
 Animations, blur between windows, inactive-window opacity, dwindle
-auto-splitting, window swallowing, cursor and icon themes, Super+drag (use
-**Ctrl ⌘ + drag**), and touchpad gestures for AeroSpace workspaces. Drivers,
+auto-splitting, window swallowing, icon themes and Super+drag (use
+**Ctrl ⌘ + drag**). The cursor theme and touchpad gestures are covered by
+better-mac's own helpers in `dots/cursor` and `dots/gestures`. Drivers,
 kernels, PipeWire, NetworkManager, display managers and the other Linux WMs
 have nothing to port.
 

@@ -1,0 +1,14 @@
+# GitHub.com/PiercingXX - Black-Minimalistic (piercing-dots resources/cursors) for piercing-cursor
+# image	frames	frame_ms	hot_x	hot_y	px	macOS cursor names
+busy	18	100	15	15	32	com.apple.coregraphics.Wait
+diagonal_resize_1	1	0	15	15	32	com.apple.cursor.29 com.apple.cursor.30 com.apple.cursor.37
+diagonal_resize_2	1	0	16	15	32	com.apple.cursor.33 com.apple.cursor.34 com.apple.cursor.35
+horizontal_resize	1	0	15	15	32	com.apple.cursor.17 com.apple.cursor.18 com.apple.cursor.19 com.apple.cursor.27 com.apple.cursor.28 com.apple.cursor.38
+link_select	8	166	15	15	32	com.apple.cursor.13 com.apple.cursor.2
+move	1	0	15	15	32	com.apple.coregraphics.Move com.apple.cursor.11 com.apple.cursor.12 com.apple.cursor.39
+normal_select	1	0	15	15	32	com.apple.coregraphics.Arrow com.apple.coregraphics.ArrowS com.apple.coregraphics.ArrowCtx com.apple.cursor.24 com.apple.coregraphics.Alias com.apple.coregraphics.Copy com.apple.cursor.5 com.apple.cursor.40
+precision_select	1	0	15	15	32	com.apple.cursor.7 com.apple.cursor.8 com.apple.cursor.41 com.apple.cursor.20
+text_select	1	0	16	16	32	com.apple.coregraphics.IBeam com.apple.coregraphics.IBeamS com.apple.coregraphics.IBeamXOR com.apple.cursor.26
+unavailable	1	0	16	16	32	com.apple.cursor.3 com.apple.cursor.25
+vertical_resize	1	0	15	15	32	com.apple.cursor.21 com.apple.cursor.22 com.apple.cursor.23 com.apple.cursor.31 com.apple.cursor.32 com.apple.cursor.36
+working_in_background	14	133	15	15	32	com.apple.cursor.4

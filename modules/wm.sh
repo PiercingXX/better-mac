@@ -5,12 +5,14 @@
 #   borders   -> JankyBorders     ulauncher -> Sol
 #   kb_options caps:backspace, Super tap -> Karabiner-Elements
 #   touchpad gestures                   -> piercing-gestures (dots/gestures)
+#   cursor theme (Black-Minimalistic)   -> piercing-cursor (dots/cursor)
 
 wm_install() {
     say "Installing the Hyprland-style desktop..."
     _wm_packages
     _wm_configs
     _wm_gestures
+    _wm_cursor
     _wm_piercing_dots
     _wm_defaults
     _wm_start
@@ -69,6 +71,37 @@ _wm_gestures() {
     launchctl bootout "gui/$(id -u)/com.piercingxx.gestures" 2>/dev/null || true
     launchctl bootstrap "gui/$(id -u)" "$agent" || warn "piercing-gestures did not start."
     ok "Touchpad gestures: 3 fingers left/right workspaces, up Sol, 4 fingers down close."
+}
+
+# The piercing-dots cursor theme (Black-Minimalistic): another Swift helper,
+# run by launchd, that registers the theme with WindowServer and re-applies it
+# after wake. Needs no permissions. Log out to get the macOS cursors back.
+_wm_cursor() {
+    local src="$BETTER_MAC_ROOT/dots/cursor" bin="$HOME/.local/bin/piercing-cursor"
+    local theme="$HOME/.local/share/piercing-cursor"
+    local agent="$HOME/Library/LaunchAgents/com.piercingxx.cursor.plist" sum
+    if [ "$DRY_RUN" -eq 1 ]; then
+        dry "build piercing-cursor -> $bin, theme -> $theme, LaunchAgent com.piercingxx.cursor"
+        return 0
+    fi
+    sum="$(shasum -a 256 "$src/piercing-cursor.swift" | cut -d' ' -f1)"
+    if [ ! -x "$bin" ] || [ "$(cat "$bin.sha256" 2>/dev/null)" != "$sum" ]; then
+        mkdir -p "$(dirname "$bin")"
+        if swiftc -O -o "$bin" "$src/piercing-cursor.swift"; then
+            printf '%s\n' "$sum" >"$bin.sha256"
+        else
+            warn "piercing-cursor did not build; keeping the macOS cursors."
+            return 0
+        fi
+    fi
+    rm -rf "$theme"
+    mkdir -p "$theme"
+    cp "$src/cursors.tsv" "$src/"*.png "$theme/"
+    mkdir -p "$(dirname "$agent")"
+    sed "s|@HOME@|$HOME|g" "$src/com.piercingxx.cursor.plist" >"$agent"
+    launchctl bootout "gui/$(id -u)/com.piercingxx.cursor" 2>/dev/null || true
+    launchctl bootstrap "gui/$(id -u)" "$agent" || warn "piercing-cursor did not start."
+    ok "Cursor: Black-Minimalistic crosshair at 35pt."
 }
 
 # Wallpapers (~/.scripts is modules/scripts.sh)
