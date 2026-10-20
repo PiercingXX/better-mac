@@ -1,0 +1,6 @@
+/* GitHub.com/PiercingXX: no close/minimize/zoom buttons and no gap for them;
+   windows close with Option-Q like on Hyprland */
+.titlebar-buttonbox-container,
+.titlebar-spacer[type="pre-tabs"] {
+    display: none !important;
+}

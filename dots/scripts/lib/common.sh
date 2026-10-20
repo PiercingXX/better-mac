@@ -189,14 +189,20 @@ single_instance() {
 # ---------------------------------------------------------------------------
 # Notifications
 #   notify_replace KEY URGENCY TIMEOUT_MS ICON SUMMARY [BODY]
-# Notification Center has no replace-by-id or timeout through osascript, so
-# KEY, URGENCY, TIMEOUT and ICON are accepted and ignored. Allow Script
-# Editor under Notifications for these to show.
+# Shown by piercing-notify (better-mac dots/notify): mako-style popups that
+# replace by KEY and honour URGENCY and TIMEOUT. ICON is ignored. Without it,
+# Notification Center through osascript (Script Editor must be allowed under
+# Notifications), which can't replace or time out.
 # ---------------------------------------------------------------------------
 _px_osa_escape() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
 
 notify_replace() {
-    local summary="$5" body="${6:-}"
+    local key="$1" urgency="$2" timeout="$3" summary="$5" body="${6:-}"
+    if [ -x "$HOME/.local/bin/piercing-notify" ]; then
+        "$HOME/.local/bin/piercing-notify" --key "$key" --urgency "$urgency" --timeout "$timeout" \
+            "$summary" "$body" >/dev/null 2>&1 &
+        return 0
+    fi
     osascript -e "display notification \"$(_px_osa_escape "$body")\" with title \"$(_px_osa_escape "$summary")\"" \
         >/dev/null 2>&1 || true
 }

@@ -59,10 +59,12 @@ then on.
 - `nvim`: plugins install on first launch (`vim.pack`).
 - tmux plugins are already installed; `prefix + I` re-runs TPM.
 - Press **⌥ /** for the keybind sheet, and type `xx` for the settings menu.
-- Allow **Script Editor** under Notifications: the notifiers (time, battery,
-  network, Bluetooth, updates) post through `osascript`, which macOS files
-  under Script Editor. The first lock, wallpaper or screenshot also asks for
-  Automation / Screen Recording permission.
+- The notifiers (time, battery, network, Bluetooth, updates) show as
+  mako-style popups from `piercing-notify`, which needs no permission. The
+  first lock, wallpaper or screenshot asks for Automation / Screen Recording
+  permission.
+- Key repeat, the accent color and "don't reopen windows" apply after you
+  log out once.
 
 ### Re-running
 
@@ -183,6 +185,10 @@ macOS minimum), hot corners off, Dock holds your GNOME favorites minus VS Code (
 Waterfox, LibreOffice, Calculator, Obsidian, Synology Chat; it stays hidden,
 see below), Night Shift 20:00-04:00 at its warmest,
 firewall on, Remote Login (SSH) on, startup chime on (`set_boot_beep.sh`).
+Like a Linux session it also: repeats held keys instead of showing the accent
+picker, uses the Graphite accent instead of blue, resizes windows instantly,
+doesn't enlarge the cursor on shake, and never reopens apps or windows from
+the last session.
 
 ### `modules/wm.sh`: the Hyprland desktop
 
@@ -193,6 +199,10 @@ firewall on, Remote Login (SSH) on, startup chime on (`set_boot_beep.sh`).
 | Dock | hidden for good (1000s reveal delay); launch from keybinds or Sol, switch with ⌘Tab |
 | Hyprland borders | [JankyBorders](https://github.com/FelixKratz/JankyBorders) |
 | ulauncher / tap Super | Sol, opened by tapping Option or swiping up with 3 fingers |
+| mako notifications | `piercing-notify` (dots/notify): dark popups under the bar, replaced by key, stacked, click to dismiss |
+| Hyprland touchpad gestures | `piercing-gestures` (dots/gestures): 3 fingers left/right walk the workspaces in use and open one new one past the last, up opens Sol, 4 down closes |
+| window decorations off | kitty and Waterfox (`dots/waterfox` userChrome.css) have no title bar buttons |
+| input repeat_rate / delay | held keys repeat (no accent picker), 30ms rate after 225ms |
 | hyprpaper | wallpaper `~/Pictures/backgrounds/1346578.jpg` |
 | `~/.scripts` | copied from piercing-dots, so the note/server/AI binds work |
 

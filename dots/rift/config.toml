@@ -112,14 +112,15 @@ vert_placement = "left"
 thickness = 28.0
 spacing = 0.0
 
-# gestures.lua: 3 fingers left/right switch workspace (piercing-gestures does
-# up/down; it leaves left/right to Rift while Rift runs)
+# gestures.lua: piercing-gestures does every swipe, including 3 fingers
+# left/right (wm-workspace-swipe.sh: Hyprland's skip-unused + create-new), so
+# Rift's own swipe is off
 [settings.gestures]
-enabled = true
+enabled = false
 consume_dock_swipe = true
 invert_horizontal_swipe = false
 swipe_vertical_tolerance = 0.4
-# false: swipe onto empty workspaces too (Hyprland workspace_swipe_create_new)
+# Only used if Rift's swipe is turned back on
 skip_empty = false
 fingers = 3
 distance_pct = 0.08

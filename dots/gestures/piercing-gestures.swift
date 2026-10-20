@@ -4,8 +4,9 @@
 //   3 fingers left/right  next/previous workspace   (gesture ... "workspace")
 //   3 fingers up          Sol's search bar (wm-app-launcher.sh, ulauncher)
 //   4 fingers down        close the focused window  (gesture ... "close")
-// for AeroSpace or Rift, whichever is running. Rift does its own animated
-// left/right swipes, so those are left to it.
+// for AeroSpace or Rift, whichever is running. Under Rift, left/right go
+// through wm-workspace-swipe.sh, which skips unused workspaces and opens one
+// new one past the last, like Hyprland.
 // Reads trackpad touches from a listen-only event tap, so it needs
 // Accessibility. macOS's own 3-finger swipes and 4-finger vertical swipes are
 // turned off by modules/wm.sh so they don't fire alongside these.
@@ -45,8 +46,8 @@ func act(_ swipe: Swipe, fingers: Int) {
     switch (fingers, swipe) {
     // Fingers move left -> the next workspace slides in from the right.
     // AeroSpace refuses next/prev with a non-tty stdin unless told to ignore it.
-    case (3, .left):  run("pgrep -xq rift || aerospace workspace --no-stdin next")
-    case (3, .right): run("pgrep -xq rift || aerospace workspace --no-stdin prev")
+    case (3, .left):  run("if pgrep -xq rift; then ~/.scripts/Control-Scripts/wm-workspace-swipe.sh next; else aerospace workspace --no-stdin next; fi")
+    case (3, .right): run("if pgrep -xq rift; then ~/.scripts/Control-Scripts/wm-workspace-swipe.sh prev; else aerospace workspace --no-stdin prev; fi")
     // Reopening Sol shows its search bar, whatever its hotkey is
     case (3, .up):    run("open -b com.ospfranco.sol")
     case (4, .down):  run("if pgrep -xq rift; then rift-cli execute window close; else aerospace close; fi")

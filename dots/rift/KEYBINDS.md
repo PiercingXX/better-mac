@@ -32,7 +32,8 @@ Switch layouts with Ctrl-Space or the Globe key.
     ⌥ + drag           move a window; drop it on another to swap (was: Super + drag)
 
 ## Touchpad
-    3 fingers left/right   next/previous workspace (Rift, animated)
+    3 fingers left/right   next/previous workspace in use; past the last one,
+                           a new empty one (Hyprland's workspace swipe)
     3 fingers up           Sol
     4 fingers down         close window
 

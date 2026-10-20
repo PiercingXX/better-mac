@@ -37,6 +37,17 @@ _system_appearance() {
     run defaults write com.apple.dock expose-animation-duration -float 0.1
     run defaults write com.apple.universalaccess reduceMotion -bool true \
         || warn "Reduce Motion not set (needs Full Disk Access); turn it on under Accessibility > Motion."
+    # Instant window resizes, and no giant cursor when the mouse is shaken
+    run defaults write NSGlobalDomain NSWindowResizeTime -float 0.001
+    run defaults write NSGlobalDomain CGDisableCursorLocationMagnification -bool true
+    # Monochrome like the GNOME/Hyprland theme: Graphite accent and highlight
+    # instead of macOS blue
+    run defaults write NSGlobalDomain AppleAccentColor -int -1
+    run defaults write NSGlobalDomain AppleHighlightColor -string "0.847059 0.847059 0.862745 Graphite"
+    # Like a Linux login: start clean, don't reopen apps and windows from last time
+    run defaults write NSGlobalDomain NSQuitAlwaysKeepsWindows -bool false
+    run defaults write com.apple.loginwindow TALLogoutSavesState -bool false
+    run defaults write com.apple.loginwindow LoginwindowLaunchesRelaunchApps -bool false
 }
 
 _system_input() {
@@ -47,6 +58,11 @@ _system_input() {
     run defaults write NSGlobalDomain com.apple.swipescrolldirection -bool true
     # mouse accel-profile flat ("Pointer acceleration" off)
     run defaults write NSGlobalDomain com.apple.mouse.linear -bool true
+    # Held keys repeat, like Linux, instead of opening the accent picker; a
+    # fast rate (30ms) after a short delay (225ms). Applies after logging out.
+    run defaults write NSGlobalDomain ApplePressAndHoldEnabled -bool false
+    run defaults write NSGlobalDomain KeyRepeat -int 2
+    run defaults write NSGlobalDomain InitialKeyRepeat -int 15
 }
 
 _system_power() {

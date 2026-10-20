@@ -6,6 +6,7 @@
 #   kb_options caps:backspace, Super tap -> Karabiner-Elements
 #   touchpad gestures                   -> piercing-gestures (dots/gestures)
 #   cursor theme (Black-Minimalistic)   -> piercing-cursor (dots/cursor)
+#   mako notifications                  -> piercing-notify (dots/notify)
 # AeroSpace stays installed as a fallback (its config is kept up to date) but
 # doesn't start at login; the bar, gestures and scripts follow whichever runs.
 
@@ -15,6 +16,8 @@ wm_install() {
     _wm_configs
     _wm_gestures
     _wm_cursor
+    _wm_notify
+    _wm_titlebars
     _wm_piercing_dots
     _wm_defaults
     _wm_start
@@ -48,28 +51,36 @@ _wm_configs() {
     ok "Rift, AeroSpace (fallback), SketchyBar, borders and Karabiner configs in place."
 }
 
-# hyprland/keybinds.lua gestures: a small Swift helper built from source and
-# run by launchd. Its ad-hoc signature carries a fixed designated requirement,
-# so the Accessibility grant survives rebuilds; it only rebuilds when the
-# source changes.
+# _wm_swift <name> [signing identifier]: build dots/*/<name>.swift into
+# ~/.local/bin/<name>, only when the source changed since the last build. With
+# an identifier, the ad-hoc signature carries a fixed designated requirement
+# so privacy grants (Accessibility) survive rebuilds.
+_wm_swift() {
+    local name="$1" id="${2:-}" src bin="$HOME/.local/bin/$1" sum
+    src="$(ls "$BETTER_MAC_ROOT"/dots/*/"$name.swift" 2>/dev/null | head -n1)"
+    [ -n "$src" ] || return 1
+    sum="$(shasum -a 256 "$src" | cut -d' ' -f1)"
+    [ -x "$bin" ] && [ "$(cat "$bin.sha256" 2>/dev/null)" = "$sum" ] && return 0
+    mkdir -p "$(dirname "$bin")"
+    swiftc -O -o "$bin" "$src" || return 1
+    if [ -n "$id" ]; then
+        codesign --force -s - --identifier "$id" -r="designated => identifier \"$id\"" "$bin" || return 1
+    fi
+    printf '%s\n' "$sum" >"$bin.sha256"
+}
+
+# hyprland/keybinds.lua gestures: a small Swift helper run by launchd. Signed
+# with a fixed requirement so its Accessibility grant survives rebuilds.
 _wm_gestures() {
     local src="$BETTER_MAC_ROOT/dots/gestures" bin="$HOME/.local/bin/piercing-gestures"
-    local agent="$HOME/Library/LaunchAgents/com.piercingxx.gestures.plist" sum
+    local agent="$HOME/Library/LaunchAgents/com.piercingxx.gestures.plist"
     if [ "$DRY_RUN" -eq 1 ]; then
         dry "build piercing-gestures -> $bin, LaunchAgent com.piercingxx.gestures"
         return 0
     fi
-    sum="$(shasum -a 256 "$src/piercing-gestures.swift" | cut -d' ' -f1)"
-    if [ ! -x "$bin" ] || [ "$(cat "$bin.sha256" 2>/dev/null)" != "$sum" ]; then
-        mkdir -p "$(dirname "$bin")"
-        if swiftc -O -o "$bin" "$src/piercing-gestures.swift" \
-            && codesign --force -s - --identifier com.piercingxx.gestures \
-                -r='designated => identifier "com.piercingxx.gestures"' "$bin"; then
-            printf '%s\n' "$sum" >"$bin.sha256"
-        else
-            warn "piercing-gestures did not build; touchpad gestures are off."
-            return 0
-        fi
+    if ! _wm_swift piercing-gestures com.piercingxx.gestures; then
+        warn "piercing-gestures did not build; touchpad gestures are off."
+        return 0
     fi
     mkdir -p "$(dirname "$agent")"
     sed "s|@HOME@|$HOME|g" "$src/com.piercingxx.gestures.plist" >"$agent"
@@ -84,20 +95,14 @@ _wm_gestures() {
 _wm_cursor() {
     local src="$BETTER_MAC_ROOT/dots/cursor" bin="$HOME/.local/bin/piercing-cursor"
     local theme="$HOME/.local/share/piercing-cursor"
-    local agent="$HOME/Library/LaunchAgents/com.piercingxx.cursor.plist" sum
+    local agent="$HOME/Library/LaunchAgents/com.piercingxx.cursor.plist"
     if [ "$DRY_RUN" -eq 1 ]; then
         dry "build piercing-cursor -> $bin, theme -> $theme, LaunchAgent com.piercingxx.cursor"
         return 0
     fi
-    sum="$(shasum -a 256 "$src/piercing-cursor.swift" | cut -d' ' -f1)"
-    if [ ! -x "$bin" ] || [ "$(cat "$bin.sha256" 2>/dev/null)" != "$sum" ]; then
-        mkdir -p "$(dirname "$bin")"
-        if swiftc -O -o "$bin" "$src/piercing-cursor.swift"; then
-            printf '%s\n' "$sum" >"$bin.sha256"
-        else
-            warn "piercing-cursor did not build; keeping the macOS cursors."
-            return 0
-        fi
+    if ! _wm_swift piercing-cursor; then
+        warn "piercing-cursor did not build; keeping the macOS cursors."
+        return 0
     fi
     rm -rf "$theme"
     mkdir -p "$theme"
@@ -107,6 +112,53 @@ _wm_cursor() {
     launchctl bootout "gui/$(id -u)/com.piercingxx.cursor" 2>/dev/null || true
     launchctl bootstrap "gui/$(id -u)" "$agent" || warn "piercing-cursor did not start."
     ok "Cursor: Black-Minimalistic crosshair at 35pt."
+}
+
+# mako/swaync-style popups for the ~/.scripts notifiers (notify_replace in
+# ~/.scripts/lib/common.sh runs it). One process per popup, no daemon.
+_wm_notify() {
+    if [ "$DRY_RUN" -eq 1 ]; then
+        dry "build piercing-notify -> ~/.local/bin/piercing-notify"
+        return 0
+    fi
+    if _wm_swift piercing-notify; then
+        ok "Notifications: Linux-style popups under the bar."
+    else
+        warn "piercing-notify did not build; the scripts use Notification Center."
+    fi
+}
+
+# Hyprland windows have no title bar or buttons. kitty's are hidden in its
+# config; Waterfox's go through userChrome.css (dots/waterfox). A fresh
+# Waterfox has no profile yet, so it's started headless once to make one.
+_wm_titlebars() {
+    local app="/Applications/Waterfox.app/Contents/MacOS/waterfox"
+    local root="$HOME/Library/Application Support/Waterfox" profile pid i
+    if [ "$DRY_RUN" -eq 1 ]; then
+        dry "dots/waterfox/ -> Waterfox default profile (no title bar buttons)"
+        return 0
+    fi
+    [ -x "$app" ] || return 0
+    if ! ls -d "$root"/Profiles/*.default-release >/dev/null 2>&1; then
+        "$app" --headless >/dev/null 2>&1 &
+        pid=$!
+        for i in $(seq 1 20); do
+            ls -d "$root"/Profiles/*.default-release >/dev/null 2>&1 && break
+            sleep 0.5
+        done
+        sleep 2
+        kill "$pid" 2>/dev/null || true
+        wait "$pid" 2>/dev/null || true
+    fi
+    profile="$(ls -d "$root"/Profiles/*.default-release 2>/dev/null | head -n1)"
+    if [ -z "$profile" ]; then
+        warn "No Waterfox profile found; open Waterfox once and rerun to hide its title bar."
+        return 0
+    fi
+    mkdir -p "$profile/chrome"
+    cp "$BETTER_MAC_ROOT/dots/waterfox/user.js" "$profile/user.js"
+    cp "$BETTER_MAC_ROOT/dots/waterfox/chrome/userChrome.css" "$profile/chrome/userChrome.css"
+    ok "Waterfox: no title bar buttons (restart it if it's open)."
 }
 
 # Wallpapers (~/.scripts is modules/scripts.sh)
