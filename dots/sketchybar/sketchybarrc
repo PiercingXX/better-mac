@@ -2,7 +2,7 @@
 # GitHub.com/PiercingXX
 # piercing-dots waybar (dots/waybar), rebuilt for SketchyBar + Rift (or AeroSpace).
 # Left: workspaces + focused app. Time just left of the MacBook notch, date just
-# right of it. Right: volume, battery, power.
+# right of it. Right: tray (Tailscale, Wi-Fi), volume, bluetooth, battery, power.
 
 PLUGIN_DIR="$CONFIG_DIR/plugins"
 
@@ -56,11 +56,13 @@ sketchybar --add item workspaces left \
            --subscribe workspaces aerospace_workspace_change rift_workspace_change front_app_switched \
                                   display_change system_woke
 
-# ---- Focused app (hyprland/window) ----
+# ---- Focused app (hyprland/window, icon: true, icon-size 20) ----
 sketchybar --add item front_app left \
-           --set front_app icon.drawing=off padding_left=12 \
+           --set front_app padding_left=12 \
+                 icon.drawing=on icon.width=22 icon.padding_right=4 \
+                 icon.background.drawing=on icon.background.image.scale=0.55 \
                  script="$PLUGIN_DIR/front_app.sh" \
-           --subscribe front_app front_app_switched
+           --subscribe front_app front_app_switched system_woke
 
 # ---- Right side, added right-to-left ----
 sketchybar --add item power right \
@@ -72,10 +74,27 @@ sketchybar --add item battery right \
            --set battery update_freq=120 script="$PLUGIN_DIR/battery.sh" \
            --subscribe battery system_woke power_source_change
 
+# ---- bluetooth (shown while on; click: bluetuith -> bluetooth-manager.sh) ----
+sketchybar --add item bluetooth right \
+           --set bluetooth update_freq=30 label.drawing=off script="$PLUGIN_DIR/tray.sh" \
+                 click_script="kitty -1 -d ~ ~/.scripts/PiercingXX-Settings-Menu/bluetooth-manager.sh" \
+           --subscribe bluetooth system_woke
+
 sketchybar --add item volume right \
            --set volume script="$PLUGIN_DIR/volume.sh" \
                  click_script="open 'x-apple.systempreferences:com.apple.Sound-Settings.extension'" \
            --subscribe volume volume_change
+
+# ---- tray: nm-applet (click: nmtui -> wifi-manager.sh) and Tailscale ----
+sketchybar --add item wifi right \
+           --set wifi update_freq=30 label.drawing=off script="$PLUGIN_DIR/tray.sh" \
+                 click_script="kitty -1 -d ~ ~/.scripts/PiercingXX-Settings-Menu/wifi-manager.sh" \
+           --subscribe wifi wifi_change system_woke
+
+sketchybar --add item tailscale right \
+           --set tailscale update_freq=30 icon="󰖂" label.drawing=off script="$PLUGIN_DIR/tray.sh" \
+                 click_script="open -a Tailscale" \
+           --subscribe tailscale system_woke
 
 # Active layout (waybar #language), hidden from the bar; its script still runs
 # (updates=on) to keep the fallback AeroSpace's keys in sync with the layout
