@@ -6,6 +6,7 @@
 apps_install() {
     say "Installing apps and their configs..."
     _apps_packages
+    apps_unquarantine
     _apps_login_items
     _apps_configs
     _apps_git_hook
@@ -23,6 +24,25 @@ _apps_packages() {
     brew_formula htop btop lnav macmon mpv ranger cava
     # ~/.scripts: settings menu (gum), Bluetooth, virus scan, backups
     brew_formula gum blueutil clamav rsync
+}
+
+# No "is an app downloaded from the Internet" prompt: drop the quarantine tag
+# browsers and Homebrew put on downloads. XProtect and notarization checks
+# still run. wm_install calls this again after its own casks.
+apps_unquarantine() {
+    local app n=0 opened=0
+    for app in /Applications/*.app "$HOME"/Applications/*.app; do
+        [ -d "$app" ] || continue
+        xattr -p com.apple.quarantine "$app" >/dev/null 2>&1 || continue
+        # An app that has already run is guarded by App Management (sudo
+        # doesn't get past it), but it has also had its one prompt already
+        if run xattr -dr com.apple.quarantine "$app" 2>/dev/null; then
+            n=$((n + 1))
+        else
+            opened=$((opened + 1))
+        fi
+    done
+    ok "No downloaded-from-the-Internet prompts ($n apps cleared, $opened already opened before)."
 }
 
 # Apps that should be running after every login (Tailscale keeps the tailnet

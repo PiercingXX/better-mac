@@ -137,6 +137,9 @@ piercing-dots configs, with small macOS fixes applied to a copy:
   Tailscale.
 - htop, btop, lnav, mpv, ranger, and macmon (nvtop doesn't support Apple GPUs).
 - cava, plus gum, blueutil, clamav and rsync for the scripts below.
+- No "is an app downloaded from the Internet" prompts: the quarantine tag is
+  stripped from every app in /Applications (apps opened before are skipped;
+  they've had their one prompt).
 - piercing-dots configs for btop, htop, mpv, ranger, ncmpcpp, opencode, cava,
   ollama (model files), docker (compose files), mpd (audio output `osx`) and
   GIMP 3.2 (`~/Library/Application Support/GIMP/3.2`).

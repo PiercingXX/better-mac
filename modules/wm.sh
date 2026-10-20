@@ -14,6 +14,7 @@
 wm_install() {
     say "Installing the Hyprland-style desktop..."
     _wm_packages
+    apps_unquarantine
     _wm_configs
     _wm_gestures
     _wm_menubar
