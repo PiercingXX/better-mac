@@ -1,6 +1,6 @@
 #!/bin/bash
 # GitHub.com/PiercingXX
-# piercing-dots waybar (dots/waybar), rebuilt for SketchyBar + AeroSpace.
+# piercing-dots waybar (dots/waybar), rebuilt for SketchyBar + Rift (or AeroSpace).
 # Left: workspaces + focused app. Time just left of the MacBook notch, date just
 # right of it. Right: volume, battery, power.
 
@@ -32,7 +32,8 @@ sketchybar --default icon.font="$MONO:Bold:13.6" \
                      label.padding_left=4 label.padding_right=4
 
 # ---- Workspaces: shown when occupied or focused, focused gets the pill ----
-sketchybar --add event aerospace_workspace_change
+sketchybar --add event aerospace_workspace_change \
+           --add event rift_workspace_change
 
 for sid in 1 2 3 4 5 6 7 8 9 10; do
     sketchybar --add item "space.$sid" left \
@@ -46,13 +47,13 @@ for sid in 1 2 3 4 5 6 7 8 9 10; do
                      background.corner_radius=15 \
                      background.height=26 \
                      background.drawing=off \
-                     click_script="aerospace workspace $sid"
+                     click_script="pgrep -xq rift && rift-cli execute workspace switch $((sid - 1)) || aerospace workspace $sid"
 done
 
 # One hidden item refreshes all ten pills per event
 sketchybar --add item workspaces left \
-           --set workspaces drawing=off updates=on script="$PLUGIN_DIR/aerospace.sh" \
-           --subscribe workspaces aerospace_workspace_change front_app_switched \
+           --set workspaces drawing=off updates=on script="$PLUGIN_DIR/workspaces.sh" \
+           --subscribe workspaces aerospace_workspace_change rift_workspace_change front_app_switched \
                                   display_change system_woke
 
 # ---- Focused app (hyprland/window) ----
@@ -77,7 +78,7 @@ sketchybar --add item volume right \
            --subscribe volume volume_change
 
 # Active layout (waybar #language), hidden from the bar; its script still runs
-# (updates=on) to keep AeroSpace's keys in sync with the layout
+# (updates=on) to keep the fallback AeroSpace's keys in sync with the layout
 sketchybar --add event input_change AppleSelectedInputSourcesChangedNotification \
            --add item keyboard right \
            --set keyboard drawing=off updates=on \

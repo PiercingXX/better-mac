@@ -41,16 +41,17 @@ and waits for you to press Enter:
 
 | Pane | Turn on |
 |---|---|
-| Privacy > Accessibility | AeroSpace, Sol, piercing-gestures |
+| Privacy > Accessibility | rift (+ `/opt/homebrew/bin/rift` if it isn't listed), Sol, piercing-gestures |
+| Privacy > Screen & System Audio Recording | rift (the ⌥E screenshot keys) |
 | Privacy > Input Monitoring | karabiner_grabber, karabiner_observer |
 | Karabiner-Elements window | its driver extension and login items |
-| Sol welcome window | hotkey **⌥ Space** (tapping Option sends it), clipboard shortcut **⌥ ⇧ Y**, Launch at login on |
+| Sol welcome window | hotkey **⌥ Space** (tapping Option sends it), clipboard shortcut **⌥ ⇧ Y** (the script adds Sol as a login item) |
 | Keyboard > Text Input > Edit | add **Colemak** and **Piercing Num** (under Others), remove U.S. |
 
 ### 4. Reboot
 
 The menu bar auto-hide, Spaces, dark mode and trackpad settings apply after a
-fresh login, and `/media` (see `modules/scripts.sh`) appears after a reboot. AeroSpace, SketchyBar, borders and Karabiner start at login from
+fresh login, and `/media` (see `modules/scripts.sh`) appears after a reboot. Rift, SketchyBar, borders, Karabiner, Sol and Tailscale start at login from
 then on.
 
 ### 5. First launches
@@ -151,9 +152,9 @@ keybinds.html and update-mirrors.
 | | macOS version |
 |---|---|
 | `xx` settings menu | same gum menu; updates use `brew`, `mas` and `softwareupdate`; Wi-Fi via `networksetup`, Bluetooth via `blueutil`, audio via `SwitchAudioSource`, wallpaper via System Events, users via `sysadminctl`/`dscl`, virus scan via Homebrew ClamAV, software manager over brew formulae + casks, "Update PiercingXX" pulls and reruns this checkout |
-| notifiers | `notify-time`/`notify-calendar` (⌥P / ⌥⇧P), plus battery, network, Bluetooth and update notifiers started at login by AeroSpace |
+| notifiers | `notify-time`/`notify-calendar` (⌥P / ⌥⇧P), plus battery, network, Bluetooth and update notifiers started at login by Rift |
 | `toggle-topbar.sh` | ⌥R hides SketchyBar and closes its gap; the state survives logins |
-| `wm-lock.sh`, `wm-screenshot.sh` | lock screen; `screencapture` to `~/Pictures/Screenshots` + clipboard (unbound: ⌘⇧3/4/5 still work) |
+| `wm-lock.sh`, `wm-screenshot.sh` | lock screen (⌥\`); `screencapture` to `~/Pictures/Screenshots` + clipboard (⌥E / ⌥⇧E / ⌥⌘E; ⌘⇧3/4/5 still work) |
 | `setup-claude-accounts.sh`, `github-clone-all.sh` | Keychain-aware status; clones into `~/GitHub` |
 | launchers, notes, `yazi-open-nvim-smart` | unchanged |
 
@@ -169,9 +170,9 @@ in your note scripts and nvim config resolves to a share mounted as
   Delete and Right ⌥ + h/j/k/l = arrows. These are Karabiner rules keyed to the
   active layout, replacing the repo's `hidutil` agent, which can't tell
   layouts apart. An existing agent is removed.
-- AeroSpace binds follow the letters of whichever layout is active, like
-  Hyprland: SketchyBar's layout item (`CMK` / `PRC`) swaps AeroSpace's key map
-  on every switch.
+- Rift binds follow the letters of whichever layout is active, like Hyprland.
+  For the fallback AeroSpace, SketchyBar's hidden layout item swaps its key
+  map on every switch.
 
 ### `modules/system.sh`: gnome-customizations.sh as macOS settings
 
@@ -187,7 +188,7 @@ firewall on, Remote Login (SSH) on, startup chime on (`set_boot_beep.sh`).
 
 | piercing-dots (Linux) | better-mac (macOS) |
 |---|---|
-| Hyprland | [AeroSpace](https://github.com/nikitabobko/AeroSpace): i3-style tiling, workspaces 1-10 |
+| Hyprland | [Rift](https://github.com/acsandmann/rift): BSP tiling (dwindle), animations, workspaces 1-10, 3-finger swipes, ⌥ + drag to move/swap. [AeroSpace](https://github.com/nikitabobko/AeroSpace) stays installed as a fallback but doesn't start at login |
 | waybar | [SketchyBar](https://github.com/FelixKratz/SketchyBar), with the macOS menu bar auto-hidden |
 | Dock | hidden for good (1000s reveal delay); launch from keybinds or Sol, switch with ⌘Tab |
 | Hyprland borders | [JankyBorders](https://github.com/FelixKratz/JankyBorders) |
@@ -197,7 +198,7 @@ firewall on, Remote Login (SSH) on, startup chime on (`set_boot_beep.sh`).
 
 Keybinds keep their Hyprland positions: **Super -> Option (⌥)**,
 **Alt -> Cmd (⌘)**, **Ctrl -> Ctrl**, so ⌘C/⌘V/⌘Q still work normally. Full
-list in [dots/aerospace/KEYBINDS.md](dots/aerospace/KEYBINDS.md).
+list in [dots/rift/KEYBINDS.md](dots/rift/KEYBINDS.md) (⌥ / opens it).
 
 ## Layout
 
@@ -211,10 +212,11 @@ modules/
 ├── scripts.sh           ~/.scripts with macOS ports, /media link
 ├── keyboard.sh          Piercing Num layout
 ├── system.sh            macOS settings, firewall, SSH
-├── wm.sh                AeroSpace desktop, permissions walkthrough
+├── wm.sh                Rift desktop, permissions walkthrough
 └── printers.sh          Canon D530 + Omezizy label printer (./better-mac.sh printers)
 dots/
-├── aerospace/           aerospace.toml (hyprland/*.lua translated) + KEYBINDS.md
+├── rift/                config.toml (hyprland/*.lua translated) + KEYBINDS.md
+├── aerospace/           fallback WM: aerospace.toml + KEYBINDS.md
 ├── sketchybar/          sketchybarrc + plugins (workspaces, app, clock, layout, volume, battery)
 ├── borders/bordersrc
 ├── karabiner/           Option-tap launcher, Caps/Backspace, Piercing arrows
@@ -229,9 +231,9 @@ dots/
 
 ## Not possible on macOS
 
-Animations, blur between windows, inactive-window opacity, dwindle
-auto-splitting, window swallowing, icon themes and Super+drag (use
-**Ctrl ⌘ + drag**). The cursor theme and touchpad gestures are covered by
+Blur between windows, inactive-window opacity, window swallowing and icon
+themes. Rift brings back window animations, dwindle-style splits and
+Super+drag (⌥ + drag). The cursor theme and touchpad gestures are covered by
 better-mac's own helpers in `dots/cursor` and `dots/gestures`. Drivers,
 kernels, PipeWire, NetworkManager, display managers and the other Linux WMs
 have nothing to port.

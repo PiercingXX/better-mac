@@ -1,11 +1,13 @@
 # shellcheck shell=bash
 # GitHub.com/PiercingXX
 # The piercing-dots Hyprland desktop, rebuilt from macOS parts:
-#   Hyprland  -> AeroSpace        waybar   -> SketchyBar
+#   Hyprland  -> Rift             waybar   -> SketchyBar
 #   borders   -> JankyBorders     ulauncher -> Sol
 #   kb_options caps:backspace, Super tap -> Karabiner-Elements
 #   touchpad gestures                   -> piercing-gestures (dots/gestures)
 #   cursor theme (Black-Minimalistic)   -> piercing-cursor (dots/cursor)
+# AeroSpace stays installed as a fallback (its config is kept up to date) but
+# doesn't start at login; the bar, gestures and scripts follow whichever runs.
 
 wm_install() {
     say "Installing the Hyprland-style desktop..."
@@ -22,14 +24,17 @@ wm_install() {
 
 _wm_packages() {
     run brew tap FelixKratz/formulae
+    run brew tap acsandmann/tap
     brew_cask nikitabobko/tap/aerospace karabiner-elements sol \
         font-jetbrains-mono-nerd-font font-fira-sans
-    brew_formula FelixKratz/formulae/sketchybar FelixKratz/formulae/borders \
-        switchaudio-osx sshpass
+    brew_formula acsandmann/tap/rift FelixKratz/formulae/sketchybar FelixKratz/formulae/borders \
+        switchaudio-osx sshpass jq
 }
 
 _wm_configs() {
     local dots="$BETTER_MAC_ROOT/dots"
+    install_file "$dots/rift/config.toml" "$HOME/.config/rift/config.toml"
+    install_file "$dots/rift/KEYBINDS.md" "$HOME/.config/rift/KEYBINDS.md"
     install_file "$dots/aerospace/aerospace.toml" "$HOME/.config/aerospace/aerospace.toml"
     install_file "$dots/aerospace/KEYBINDS.md" "$HOME/.config/aerospace/KEYBINDS.md"
     install_dir  "$dots/sketchybar" "$HOME/.config/sketchybar"
@@ -40,7 +45,7 @@ _wm_configs() {
                  "$HOME/.config/sketchybar/plugins/"*.sh \
                  "$HOME/.config/borders/bordersrc"
     fi
-    ok "AeroSpace, SketchyBar, borders and Karabiner configs in place."
+    ok "Rift, AeroSpace (fallback), SketchyBar, borders and Karabiner configs in place."
 }
 
 # hyprland/keybinds.lua gestures: a small Swift helper built from source and
@@ -132,7 +137,7 @@ _wm_defaults() {
     run defaults write com.apple.dock autohide -bool true
     run defaults write com.apple.dock autohide-delay -float 1000
     run defaults write com.apple.dock show-recents -bool false
-    # AeroSpace guide: group windows by app in Mission Control, and one Space
+    # Tiling WM guides: group windows by app in Mission Control, and one Space
     # across all displays ("Displays have separate Spaces" off)
     run defaults write com.apple.dock expose-group-apps -bool true
     run defaults write com.apple.spaces spans-displays -bool true
@@ -140,8 +145,9 @@ _wm_defaults() {
     run defaults write NSGlobalDomain NSWindowShouldDragOnGesture -bool true
     # No zoom animation when windows open
     run defaults write NSGlobalDomain NSAutomaticWindowAnimationsEnabled -bool false
-    # 3-finger swipes and 4-finger vertical swipes belong to piercing-gestures;
-    # 4 fingers left/right still switch macOS Spaces and full-screen apps
+    # 3-finger swipes belong to Rift (left/right) and piercing-gestures (up),
+    # 4-finger vertical swipes to piercing-gestures; 4 fingers left/right
+    # still switch macOS Spaces and full-screen apps
     local trackpad key
     for trackpad in com.apple.AppleMultitouchTrackpad com.apple.driver.AppleBluetoothMultitouch.trackpad; do
         for key in TrackpadThreeFingerHorizSwipeGesture TrackpadThreeFingerVertSwipeGesture \
@@ -158,15 +164,22 @@ _wm_defaults() {
     run defaults write com.apple.dock showAppExposeGestureEnabled -bool false
     run killall Dock || true
     run killall SystemUIServer || true
-    ok "Menu bar auto-hides, Dock stays hidden, Spaces span displays, ctrl+cmd+drag enabled, macOS swipes handed to piercing-gestures."
+    ok "Menu bar auto-hides, Dock stays hidden, Spaces span displays, ctrl+cmd+drag enabled, macOS swipes handed to Rift and piercing-gestures."
 }
 
 _wm_start() {
     run brew services restart sketchybar || warn "SketchyBar did not start."
     run brew services restart borders || warn "borders did not start."
-    run open -a AeroSpace
+    # One tiling WM at a time: AeroSpace's config has start-at-login off, and
+    # a running one is quit before Rift takes the windows
+    run osascript -e 'quit app "AeroSpace"' 2>/dev/null || true
+    # rift service install writes ~/Library/LaunchAgents/git.acsandmann.rift.plist
+    # with the PATH it sees, which the config's exec binds rely on
+    run rift service install || warn "Rift's login service was not installed."
+    run rift service restart || warn "Rift did not start."
     run open -a Karabiner-Elements
     run open -b com.ospfranco.sol
+    login_item /Applications/Sol.app
 }
 
 # macOS only lets a person grant these, so open each pane and wait
@@ -177,11 +190,13 @@ _wm_permissions() {
     fi
     say "A few switches only you can flip. Opening each settings pane:"
     open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-    wait_for_user "Accessibility: turn on AeroSpace, Sol and piercing-gestures."
+    wait_for_user "Accessibility: turn on rift, Sol and piercing-gestures (+ to add /opt/homebrew/bin/rift if it isn't listed)."
     open "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
     wait_for_user "Input Monitoring: turn on karabiner_grabber and karabiner_observer."
     wait_for_user "Karabiner-Elements window: allow its driver extension and login items if it asks."
-    wait_for_user "Sol settings: hotkey Option-Space (tapping Option sends it), clipboard manager shortcut Option-Shift-Y, Launch at login on."
+    open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
+    wait_for_user "Screen & System Audio Recording: turn on rift (the Option-E screenshot keys)."
+    wait_for_user "Sol settings: hotkey Option-Space (tapping Option sends it), clipboard manager shortcut Option-Shift-Y."
     open "x-apple.systempreferences:com.apple.Keyboard-Settings.extension"
     wait_for_user "Keyboard > Text Input > Edit: add Colemak and Piercing Num (under Others), remove U.S. Switch with Ctrl-Space or Globe."
 }

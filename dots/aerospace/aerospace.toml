@@ -21,7 +21,8 @@ after-startup-command = [
     'exec-and-forget ~/.scripts/Control-Scripts/bluetooth-notify.sh',
     'exec-and-forget sleep 20 && ~/.scripts/Control-Scripts/update-notify.sh',
 ]
-start-at-login = true
+# Fallback WM: Rift starts at login instead (modules/wm.sh)
+start-at-login = false
 auto-reload-config = true
 
 enable-normalization-flatten-containers = true

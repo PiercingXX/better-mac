@@ -6,13 +6,15 @@
 # "off" means `--bar hidden=on` instead of killing the process. waybar,
 # polybar and the per-session bar memory are dropped (one bar, one session).
 # SketchyBar sits in the notch strip, which macOS keeps windows out of either
-# way, so AeroSpace's top gap stays 5 with or without it.
+# way, so the WM's top gap stays 5 with or without it. Rift or AeroSpace,
+# whichever is running.
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}"
 STATE_FILE="$STATE_DIR/topbar/state"
 TOML="$HOME/.config/aerospace/aerospace.toml"
+RIFT_TOML="$HOME/.config/rift/config.toml"
 GAP_WITH_BAR="${TOPBAR_GAP_ON:-5}"
 GAP_WITHOUT_BAR="${TOPBAR_GAP_OFF:-5}"
 
@@ -56,9 +58,33 @@ start_bar() {
     wait_for_bar 10
 }
 
-# set_gap <n>: rewrite a plain `gaps.outer.top = N` line and reload AeroSpace.
-# A per-monitor gap list is left alone.
+# set_gap <n>: the WM's top gap
 set_gap() {
+    if pgrep -xq rift; then
+        set_rift_gap "$1"
+    else
+        set_aerospace_gap "$1"
+    fi
+}
+
+# set_rift_gap <n>: rewrite `top = N` under [settings.layout.gaps.outer];
+# Rift reloads the file itself (hot_reload)
+set_rift_gap() {
+    local gap="$1" tmp
+    [ -f "$RIFT_TOML" ] || return 0
+    tmp="$(mktemp)"
+    awk -v gap="$gap" '
+        /^\[/ { outer = ($0 == "[settings.layout.gaps.outer]") }
+        outer && /^top = [0-9.]+[[:space:]]*$/ { $0 = "top = " gap }
+        { print }
+    ' "$RIFT_TOML" >"$tmp"
+    cmp -s "$tmp" "$RIFT_TOML" || cat "$tmp" >"$RIFT_TOML"
+    rm -f "$tmp"
+}
+
+# set_aerospace_gap <n>: rewrite a plain `gaps.outer.top = N` line and reload
+# AeroSpace. A per-monitor gap list is left alone.
+set_aerospace_gap() {
     local gap="$1" tmp
     [ -f "$TOML" ] || return 0
     grep -qE '^gaps\.outer\.top = [0-9]+[[:space:]]*$' "$TOML" || return 0

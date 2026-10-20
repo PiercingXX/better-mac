@@ -54,6 +54,25 @@ _system_power() {
     run sudo pmset -c sleep 60 displaysleep 15
     run sudo pmset -b sleep 30 displaysleep 15
     run sudo pmset -a halfdim 0
+    _system_shutdown_sudo
+}
+
+# Ctrl ⌘ ⇧ K / Backspace shut down at once, like systemctl poweroff: let this
+# user run `shutdown -h now` without a password (nothing else)
+_system_shutdown_sudo() {
+    local rule="/etc/sudoers.d/piercingxx-shutdown" tmp
+    if [ "$DRY_RUN" -eq 1 ]; then
+        dry "sudoers: $USER may run /sbin/shutdown -h now without a password"
+        return 0
+    fi
+    tmp="$(mktemp)"
+    printf '%s ALL=(root) NOPASSWD: /sbin/shutdown -h now\n' "$USER" >"$tmp"
+    if sudo visudo -cqf "$tmp" && sudo install -m 0440 -o root -g wheel "$tmp" "$rule"; then
+        ok "Shutdown keybind runs without a password."
+    else
+        warn "Could not add $rule; the shutdown keybind will ask for a password."
+    fi
+    rm -f "$tmp"
 }
 
 _system_finder_dock() {

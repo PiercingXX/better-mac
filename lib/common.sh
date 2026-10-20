@@ -154,3 +154,19 @@ brew_cask() {
         run brew install --cask "$c" || warn "brew install --cask $c failed"
     done
 }
+
+# login_item <app path>: open the app at every login (General > Login Items),
+# added once through System Events
+login_item() {
+    local app="$1" name
+    name="$(basename "$app" .app)"
+    if [ "$DRY_RUN" -eq 1 ]; then
+        dry "login item: $name"
+        return 0
+    fi
+    [ -d "$app" ] || return 0
+    osascript -e 'tell application "System Events" to get name of every login item' 2>/dev/null \
+        | tr ',' '\n' | sed 's/^ *//' | grep -qx "$name" && return 0
+    osascript -e "tell application \"System Events\" to make login item at end with properties {path:\"$app\", hidden:true}" >/dev/null \
+        || warn "Could not add $name as a login item; add it under General > Login Items."
+}

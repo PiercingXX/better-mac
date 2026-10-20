@@ -1,0 +1,285 @@
+# GitHub.com/PiercingXX
+# piercing-dots Hyprland config (dots/hypr/hyprland/*.lua), translated for Rift.
+#
+# Modifier map, by physical key position on a Mac keyboard:
+#   Hyprland SUPER -> Alt   Option sits where Super does on a PC keyboard, and
+#                           this keeps Cmd free for copy/paste/undo/quit.
+#   Hyprland ALT   -> Meta  (Cmd)
+#   Hyprland CTRL  -> Ctrl
+#
+# Letters follow the active input source (Colemak / Piercing Num) like
+# Hyprland's keysyms; Rift rebuilds its key map whenever the source changes.
+# Rift starts commands directly (no shell, no ~), so anything with a path or
+# shell syntax goes through /bin/bash -c. PATH is the one `rift service
+# install` saw (modules/wm.sh runs it with Homebrew on PATH).
+
+[settings]
+# animations.lua
+animate = true
+animation_duration = 0.2
+# 0.0 (match the display) panics Rift 0.7 on this Mac; 120 = ProMotion
+animation_fps = 120.0
+
+# Manage every macOS Space, like Hyprland manages every workspace
+default_disable = false
+
+# input.follow_mouse = 1
+focus_follows_mouse = true
+mouse_follows_focus = false
+mouse_hides_on_focus = false
+
+# Sol's panel shouldn't pull focus or switch workspaces
+auto_focus_blacklist = ["com.ospfranco.sol"]
+
+# execs.lua autostart: bar state, notifiers, update check (the scripts guard
+# against running twice), plus SketchyBar's workspace pills
+run_on_start = [
+  "/bin/bash -c '~/.scripts/Control-Scripts/toggle-topbar.sh --startup'",
+  "/bin/bash -c '~/.scripts/Control-Scripts/battery-notify.sh'",
+  "/bin/bash -c '~/.scripts/Control-Scripts/network-notify.sh'",
+  "/bin/bash -c '~/.scripts/Control-Scripts/bluetooth-notify.sh'",
+  "/bin/bash -c 'sleep 20 && ~/.scripts/Control-Scripts/update-notify.sh'",
+  "rift-cli subscribe cli --event workspace_changed --command /bin/bash --args -c --args 'sketchybar --trigger rift_workspace_change'",
+  "rift-cli subscribe cli --event windows_changed --command /bin/bash --args -c --args 'sketchybar --trigger rift_workspace_change'",
+]
+
+hot_reload = true
+
+[settings.layout]
+# dwindle -> binary space partitioning
+mode = "bsp"
+window_insertion_point = "next_to_selection"
+
+[settings.layout.traditional]
+equalize_nodes = true
+
+[settings.layout.master_stack]
+master_ratio = 0.6
+master_count = 1
+master_side = "left"
+new_window_placement = "master"
+
+[settings.layout.scrolling]
+column_width_ratio = 0.7
+preserve_window_sizes = true
+expand_single_column = false
+min_column_width_ratio = 0.3
+max_column_width_ratio = 0.9
+alignment = "center"
+focus_navigation_style = "niri"
+
+[settings.layout.scrolling.gestures]
+enabled = false
+invert_horizontal = false
+fingers = 3
+propagate_to_workspace_swipe = false
+
+[settings.layout.stack]
+stack_offset = 40.0
+default_orientation = "perpendicular"
+
+# general.gaps_in = 8, gaps_out = 10. SketchyBar sits in the notch strip, which
+# macOS already keeps windows out of, so the top gap is only 5.
+[settings.layout.gaps.outer]
+top = 5
+left = 10
+bottom = 10
+right = 10
+
+[settings.layout.gaps.inner]
+horizontal = 8
+vertical = 8
+
+[settings.ui.mission_control]
+enabled = false
+show_empty_workspaces = true
+
+# SketchyBar shows the workspaces
+[settings.ui.menu_bar]
+enabled = false
+show_empty = false
+show_binding_mode = true
+mode = "all"
+active_label = "index"
+display_style = "layout"
+layout_folder = "~/.config/rift/layouts"
+
+[settings.ui.stack_line]
+enabled = true
+hover = "hover"
+horiz_placement = "top"
+vert_placement = "left"
+thickness = 28.0
+spacing = 0.0
+
+# gestures.lua: 3 fingers left/right switch workspace (piercing-gestures does
+# up/down; it leaves left/right to Rift while Rift runs)
+[settings.gestures]
+enabled = true
+consume_dock_swipe = true
+invert_horizontal_swipe = false
+swipe_vertical_tolerance = 0.4
+# false: swipe onto empty workspaces too (Hyprland workspace_swipe_create_new)
+skip_empty = false
+fingers = 3
+distance_pct = 0.08
+haptics_enabled = true
+
+# Super + drag moves windows (Option + drag here); drop on another to swap
+[settings.drag_drop]
+enabled = true
+modifier = "alt"
+action1 = "move"
+drop_action = "swap"
+drop_zone_fraction = 0.25
+preview = true
+
+[virtual_workspaces]
+enabled = true
+default_workspace_count = 10
+auto_assign_windows = true
+preserve_focus_per_workspace = true
+workspace_auto_back_and_forth = false
+prevent_wrapping = false
+reapply_app_rules_on_title_change = false
+workspace_rules = []
+workspace_names = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+
+# rules.lua window rules
+app_rules = [
+  { app_id = "com.apple.calculator", floating = true },
+  { app_id = "com.apple.systempreferences", floating = true },
+  { app_id = "com.valvesoftware.steam", floating = true },
+  { title_regex = "(?i)picture.in.picture", floating = true },
+]
+
+[modifier_combinations]
+
+[keys]
+# ---- Essentials ----
+"Alt + Q" = "close_window"
+"Alt + S" = { exec = ["/bin/bash", "-c", "kitty -1 -d ~ ~/.scripts/PiercingXX-Settings-Menu/settings-menu.sh"] }
+"Alt + Shift + Q" = { exec = ["/bin/bash", "-c", "kill -9 \"$(lsappinfo info -only pid \"$(lsappinfo front)\" | cut -d= -f2)\""] }
+"Alt + Shift + S" = { exec = ["open", "x-apple.systempreferences:com.apple.Sound-Settings.extension"] }
+"Alt + Meta + S" = { exec = ["open", "-b", "com.apple.systempreferences"] }
+"Alt + Shift + F" = "toggle_fullscreen"
+"Alt + F" = "toggle_window_floating"
+"Alt + R" = { exec = ["/bin/bash", "-c", "~/.scripts/Control-Scripts/toggle-topbar.sh"] }
+"Alt + X" = "toggle_orientation"
+"Alt + Slash" = { exec = ["/bin/bash", "-c", "kitty -1 -d ~ less ~/.config/rift/KEYBINDS.md"] }
+"Alt + Shift + Semicolon" = "reload_config"
+# Print / Shift+Print: no Print key on a MacBook, so E (screEnshot)
+"Alt + E" = { exec = ["/bin/bash", "-c", "~/.scripts/Control-Scripts/wm-screenshot.sh region"] }
+"Alt + Shift + E" = { exec = ["/bin/bash", "-c", "~/.scripts/Control-Scripts/wm-screenshot.sh window"] }
+"Alt + Meta + E" = { exec = ["/bin/bash", "-c", "~/.scripts/Control-Scripts/wm-screenshot.sh full"] }
+
+# ---- Notes and to-do lists ----
+"Alt + N" = { exec = ["/bin/bash", "-c", "kitty -1 -d ~ ~/.scripts/Note-Scripts/open_daily_note.sh --split"] }
+"Alt + Shift + N" = { exec = ["/bin/bash", "-c", "kitty -1 -d ~ ~/.scripts/Note-Scripts/open_daily_note.sh --view"] }
+"Alt + Meta + N" = { exec = ["/bin/bash", "-c", "kitty -1 -d ~ ~/.scripts/Note-Scripts/open_daily_note.sh --todo"] }
+"Alt + Meta + Shift + N" = { exec = ["/bin/bash", "-c", "kitty -1 -d ~ ~/.scripts/Note-Scripts/open_daily_note.sh --directory"] }
+"Alt + I" = { exec = ["/bin/bash", "-c", "kitty -1 -d ~ ~/.scripts/Note-Scripts/inventory.sh"] }
+
+# ---- Server monitor ----
+"Alt + M" = { exec = ["/bin/bash", "-c", "kitty -d ~ -o allow_remote_control=yes -o close_on_child_death=yes ~/.scripts/Control-Scripts/launch-server-monitor.sh -monitor"] }
+"Alt + Shift + M" = { exec = ["/bin/bash", "-c", "kitty -d ~ -o allow_remote_control=yes -o close_on_child_death=yes ~/.scripts/Control-Scripts/launch-server-monitor.sh -remote"] }
+
+# ---- Applications ----
+"Alt + W" = { exec = ["/bin/bash", "-c", "kitty -1 -d ~"] }
+"Alt + T" = { exec = ["/bin/bash", "-c", "kitty -1 -d ~ tmux"] }
+"Alt + Z" = { exec = ["/bin/bash", "-c", "kitty -1 -d ~ yazi"] }
+"Alt + Shift + Z" = { exec = ["/bin/bash", "-c", "open ~"] }
+"Alt + C" = { exec = ["open", "-a", "Waterfox"] }
+"Alt + D" = { exec = ["open", "-a", "Discord"] }
+"Alt + V" = { exec = ["/bin/bash", "-c", "kitty -1 -d ~ nvim"] }
+"Alt + Shift + V" = { exec = ["open", "-a", "OpenCode"] }
+"Alt + Meta + V" = { exec = ["open", "-a", "Visual Studio Code"] }
+"Alt + B" = { exec = ["open", "-a", "Obsidian"] }
+"Alt + G" = { exec = ["open", "-a", "GIMP"] }
+"Ctrl + Meta + Backspace" = { exec = ["open", "-a", "Activity Monitor"] }
+"Ctrl + Meta + Delete" = { exec = ["open", "-a", "Activity Monitor"] }  # Piercing: Backspace key is Delete
+# Shut down now, no prompts (sudoers rule from modules/system.sh)
+"Ctrl + Meta + Shift + K" = { exec = ["sudo", "-n", "/sbin/shutdown", "-h", "now"] }
+
+# ---- Self-hosted AI ----
+"Alt + A" = { exec = ["/bin/bash", "-c", "kitty -1 -d ~ ~/.scripts/Control-Scripts/launch-skippy-remote.sh"] }
+"Alt + Shift + A" = { exec = ["/bin/bash", "-c", "kitty -1 -d ~ ~/.scripts/Control-Scripts/launch-ollama-remote.sh --skippy"] }
+"Alt + Meta + A" = { exec = ["/bin/bash", "-c", "kitty -1 -d ~ ~/.scripts/Control-Scripts/launch-ollama-remote.sh --gemma"] }
+
+# ---- Session ----
+"Alt + Grave" = { exec = ["/bin/bash", "-c", "~/.scripts/Control-Scripts/wm-lock.sh"] }
+"Alt + Shift + Grave" = { exec = ["pmset", "sleepnow"] }
+"Ctrl + Meta + Shift + Backspace" = { exec = ["osascript", "-e", "tell application \"System Events\" to shut down"] }
+"Ctrl + Meta + Shift + Delete" = { exec = ["osascript", "-e", "tell application \"System Events\" to shut down"] }
+
+# ---- Audio output / time / calendar / calculator ----
+"Alt + O" = { exec = ["/bin/bash", "-c", "~/.scripts/PiercingXX-Settings-Menu/audio-input-manager.sh --toggle-output"] }
+"Alt + P" = { exec = ["/bin/bash", "-c", "~/.scripts/Control-Scripts/notify-time.sh"] }
+"Alt + Shift + P" = { exec = ["/bin/bash", "-c", "~/.scripts/Control-Scripts/notify-calendar.sh"] }
+"Alt + Shift + C" = { exec = ["open", "-a", "Calculator"] }
+
+# ---- Focus (vim keys + arrows) ----
+"Alt + H" = { move_focus = "left" }
+"Alt + J" = { move_focus = "down" }
+"Alt + K" = { move_focus = "up" }
+"Alt + L" = { move_focus = "right" }
+"Alt + Left" = { move_focus = "left" }
+"Alt + Down" = { move_focus = "down" }
+"Alt + Up" = { move_focus = "up" }
+"Alt + Right" = { move_focus = "right" }
+
+# ---- Move window ----
+"Alt + Shift + H" = { move_node = "left" }
+"Alt + Shift + J" = { move_node = "down" }
+"Alt + Shift + K" = { move_node = "up" }
+"Alt + Shift + L" = { move_node = "right" }
+"Alt + Shift + Left" = { move_node = "left" }
+"Alt + Shift + Down" = { move_node = "down" }
+"Alt + Shift + Up" = { move_node = "up" }
+"Alt + Shift + Right" = { move_node = "right" }
+
+# ---- Resize window ----
+"Alt + Meta + H" = { resize_window_shrink = "horizontal" }
+"Alt + Meta + J" = { resize_window_grow = "vertical" }
+"Alt + Meta + K" = { resize_window_shrink = "vertical" }
+"Alt + Meta + L" = { resize_window_grow = "horizontal" }
+"Alt + Meta + Left" = { resize_window_shrink = "horizontal" }
+"Alt + Meta + Down" = { resize_window_grow = "vertical" }
+"Alt + Meta + Up" = { resize_window_shrink = "vertical" }
+"Alt + Meta + Right" = { resize_window_grow = "horizontal" }
+
+# ---- Workspaces 1-10 (Rift counts from 0) ----
+"Alt + 1" = { switch_to_workspace = 0 }
+"Alt + 2" = { switch_to_workspace = 1 }
+"Alt + 3" = { switch_to_workspace = 2 }
+"Alt + 4" = { switch_to_workspace = 3 }
+"Alt + 5" = { switch_to_workspace = 4 }
+"Alt + 6" = { switch_to_workspace = 5 }
+"Alt + 7" = { switch_to_workspace = 6 }
+"Alt + 8" = { switch_to_workspace = 7 }
+"Alt + 9" = { switch_to_workspace = 8 }
+"Alt + 0" = { switch_to_workspace = 9 }
+
+# Move window and follow it (movetoworkspace)
+"Alt + Shift + 1" = { move_window_to_workspace = { workspace = 0, follow = true } }
+"Alt + Shift + 2" = { move_window_to_workspace = { workspace = 1, follow = true } }
+"Alt + Shift + 3" = { move_window_to_workspace = { workspace = 2, follow = true } }
+"Alt + Shift + 4" = { move_window_to_workspace = { workspace = 3, follow = true } }
+"Alt + Shift + 5" = { move_window_to_workspace = { workspace = 4, follow = true } }
+"Alt + Shift + 6" = { move_window_to_workspace = { workspace = 5, follow = true } }
+"Alt + Shift + 7" = { move_window_to_workspace = { workspace = 6, follow = true } }
+"Alt + Shift + 8" = { move_window_to_workspace = { workspace = 7, follow = true } }
+"Alt + Shift + 9" = { move_window_to_workspace = { workspace = 8, follow = true } }
+"Alt + Shift + 0" = { move_window_to_workspace = { workspace = 9, follow = true } }
+
+# Move window silently (movetoworkspacesilent)
+"Alt + Meta + 1" = { move_window_to_workspace = { workspace = 0, follow = false } }
+"Alt + Meta + 2" = { move_window_to_workspace = { workspace = 1, follow = false } }
+"Alt + Meta + 3" = { move_window_to_workspace = { workspace = 2, follow = false } }
+"Alt + Meta + 4" = { move_window_to_workspace = { workspace = 3, follow = false } }
+"Alt + Meta + 5" = { move_window_to_workspace = { workspace = 4, follow = false } }
+"Alt + Meta + 6" = { move_window_to_workspace = { workspace = 5, follow = false } }
+"Alt + Meta + 7" = { move_window_to_workspace = { workspace = 6, follow = false } }
+"Alt + Meta + 8" = { move_window_to_workspace = { workspace = 7, follow = false } }
+"Alt + Meta + 9" = { move_window_to_workspace = { workspace = 8, follow = false } }
+"Alt + Meta + 0" = { move_window_to_workspace = { workspace = 9, follow = false } }

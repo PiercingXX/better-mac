@@ -7,7 +7,7 @@
 # hyprshot > grim+slurp > flameshot. region is a drag (Space switches to
 # window picking), window is a click, full is the main display. The PNG is
 # saved and copied to the clipboard like the grim/flameshot paths. Needs
-# Screen Recording permission for whatever launches it (AeroSpace).
+# Screen Recording permission for whatever launches it (rift).
 
 # shellcheck disable=SC1091
 . "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../lib/common.sh"

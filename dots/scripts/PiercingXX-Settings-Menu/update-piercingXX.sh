@@ -104,7 +104,7 @@ preview_changes() {
                 rsync -rcn --itemize-changes "$CLONE_DIR/dots/$app/" "$HOME/.config/$app/" \
                     | awk -v p="~/.config/$app/" '$1 ~ /^>f/ {print p $2}'
             done
-            for app in aerospace sketchybar borders karabiner; do
+            for app in rift aerospace sketchybar borders karabiner; do
                 rsync -rcn --itemize-changes --exclude KEYBINDS.html "$BETTER_MAC_ROOT/dots/$app/" "$HOME/.config/$app/" \
                     | awk -v p="~/.config/$app/" '$1 ~ /^>f/ {print p $2}'
             done

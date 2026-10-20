@@ -28,21 +28,8 @@ _apps_packages() {
 # Apps that should be running after every login (Tailscale keeps the tailnet
 # up). Login items show under General > Login Items & Extensions.
 _apps_login_items() {
-    local app name
-    for app in /Applications/Tailscale.app; do
-        name="$(basename "$app" .app)"
-        if [ "$DRY_RUN" -eq 1 ]; then
-            dry "login item: $name"
-            continue
-        fi
-        [ -d "$app" ] || continue
-        if ! osascript -e 'tell application "System Events" to get name of every login item' 2>/dev/null \
-                | tr ',' '\n' | sed 's/^ *//' | grep -qx "$name"; then
-            osascript -e "tell application \"System Events\" to make login item at end with properties {path:\"$app\", hidden:true}" >/dev/null \
-                || warn "Could not add $name as a login item; add it under General > Login Items."
-        fi
-        open "$app" 2>/dev/null || true
-    done
+    login_item /Applications/Tailscale.app
+    [ "$DRY_RUN" -eq 1 ] || open /Applications/Tailscale.app 2>/dev/null || true
     ok "Tailscale opens at login."
 }
 

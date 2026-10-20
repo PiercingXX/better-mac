@@ -11,7 +11,7 @@
 [ -n "${PX_COMMON_LOADED:-}" ] && return 0
 PX_COMMON_LOADED=1
 
-# Scripts run from AeroSpace keybinds and Sol, which don't load ~/.bashrc
+# Scripts run from Rift keybinds and Sol, which don't load ~/.bashrc
 case ":$PATH:" in
     *:/opt/homebrew/bin:*) ;;
     *) PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:$PATH" ;;
@@ -209,10 +209,11 @@ osd() {
 
 # ---------------------------------------------------------------------------
 # Session / window manager detection
-#   detect_wm -> aerospace|macos|tty
+#   detect_wm -> rift|aerospace|macos|tty
 # ---------------------------------------------------------------------------
 detect_wm() {
-    if pgrep -x AeroSpace >/dev/null 2>&1; then echo aerospace
+    if pgrep -x rift >/dev/null 2>&1; then echo rift
+    elif pgrep -x AeroSpace >/dev/null 2>&1; then echo aerospace
     elif [ -n "${TERM_PROGRAM:-}" ] || pgrep -x WindowServer >/dev/null 2>&1; then echo macos
     else echo tty
     fi

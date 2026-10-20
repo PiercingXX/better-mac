@@ -1,9 +1,9 @@
 #!/bin/bash
 # GitHub.com/PiercingXX
-# Hyprland binds follow the letters of the active layout (keysyms); AeroSpace
-# binds physical keys. On every input-source change this swaps AeroSpace's
-# key map to match and reloads it, and shows the layout in the bar
-# (waybar's #language).
+# Hyprland binds follow the letters of the active layout (keysyms). Rift does
+# the same on its own; AeroSpace (the fallback WM) binds physical keys, so on
+# every input-source change this swaps AeroSpace's key map to match and
+# reloads it, and shows the layout in the bar (waybar's #language).
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 TOML="$HOME/.config/aerospace/aerospace.toml"
