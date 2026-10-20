@@ -14,7 +14,7 @@ import AppKit
 
 let width: CGFloat = 340
 let margin: CGFloat = 10       // from the screen edge
-let topMargin: CGFloat = 37    // below SketchyBar
+let topMargin: CGFloat = 30    // below SketchyBar
 let spacing: CGFloat = 8       // between stacked popups
 let maxHeight: CGFloat = 120   // tallest popup (title 2 lines + body 4)
 let fontName = "JetBrainsMono Nerd Font"
