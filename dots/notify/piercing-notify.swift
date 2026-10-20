@@ -13,7 +13,8 @@
 import AppKit
 
 let width: CGFloat = 340
-let margin: CGFloat = 10       // from the screen edge and SketchyBar
+let margin: CGFloat = 10       // from the screen edge
+let topMargin: CGFloat = 30    // below SketchyBar
 let spacing: CGFloat = 8       // between stacked popups
 let maxHeight: CGFloat = 120   // tallest popup (title 2 lines + body 4)
 let fontName = "JetBrainsMono Nerd Font"
@@ -126,7 +127,7 @@ class Popup: NSPanel {
 
 let screen = NSScreen.main ?? NSScreen.screens[0]
 // Below the notch strip SketchyBar sits in
-let top = screen.frame.maxY - max(screen.safeAreaInsets.top, NSStatusBar.system.thickness) - margin
+let top = screen.frame.maxY - max(screen.safeAreaInsets.top, NSStatusBar.system.thickness) - topMargin
 let frame = NSRect(x: screen.frame.maxX - width - margin,
                    y: top - height - above,
                    width: width, height: height)
