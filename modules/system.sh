@@ -119,23 +119,15 @@ _system_screenshots() {
     run defaults write com.apple.screencapture disable-shadow -bool true
 }
 
-# Notifications off for every app except the necessary ones below. macOS 26
-# keeps the per-app switches in usernoted's group container, readable only
-# with Full Disk Access; bit 25 of each app's flags is "Allow notifications".
+# Every macOS notification off: the ~/.scripts notifiers show their own
+# popups (piercing-notify, modules/wm.sh), like mako on Linux. macOS 26 keeps
+# the per-app switches in usernoted's group container, readable only with
+# Full Disk Access; bit 25 of each app's flags is "Allow notifications".
 # Only apps that have already asked to notify are listed there, so apps
 # installed later start allowed until this runs again.
-#   Script Editor        ~/.scripts notifiers (battery, bluetooth, network)
-#   tccd                 privacy permission notices
-#   Messages             texts
-#   Tailscale            login expiry
-#   Bluetooth, AirDrop   pairing codes, incoming AirDrop / Continuity
 _system_notifications() {
-    local keep="com.apple.ScriptEditor2 com.apple.tccd com.apple.MobileSMS com.apple.iChat
-        io.tailscale.ipn.macsys _SYSTEM_CENTER_:com.apple.BluetoothUIServer
-        _SYSTEM_CENTER_:com.apple.sharingd _SYSTEM_CENTER_:com.apple.sharingd.continuity
-        com.apple.wifip2pd.UserNotification"
     if [ "$DRY_RUN" -eq 1 ]; then
-        dry "notifications off for all but $(echo $keep | wc -w | tr -d ' ') apps"
+        dry "every macOS notification off"
         return 0
     fi
     # The bare domain name resolves to an empty plist outside the container
@@ -143,16 +135,15 @@ _system_notifications() {
     local stage
     stage="$(mktemp)"
     if ! defaults export "$domain" "$stage" 2>/dev/null \
-        || ! /usr/bin/python3 -I - "$stage" $keep <<'PY'
+        || ! /usr/bin/python3 -I - "$stage" <<'PY'
 import plistlib, sys
-path, keep = sys.argv[1], set(sys.argv[2:])
+path = sys.argv[1]
 with open(path, 'rb') as f:
     d = plistlib.load(f)
 if not d.get('apps'):
     sys.exit(1)
 for app in d.get('apps', []):
-    if app.get('bundle-id') not in keep:
-        app['flags'] = app.get('flags', 0) & ~(1 << 25)
+    app['flags'] = app.get('flags', 0) & ~(1 << 25)
 with open(path, 'wb') as f:
     plistlib.dump(d, f, fmt=plistlib.FMT_BINARY)
 PY
@@ -164,7 +155,7 @@ PY
     defaults import "$domain" "$stage"
     rm -f "$stage"
     killall usernoted NotificationCenter 2>/dev/null || true
-    ok "Notifications off except Script Editor, permissions, Messages, Tailscale, Bluetooth and AirDrop."
+    ok "Every macOS notification off (the scripts use piercing-notify)."
 }
 
 _system_desktop() {

@@ -76,7 +76,9 @@ func cleanUp() {
 
 // ---- The popup ----
 let app = NSApplication.shared
-app.setActivationPolicy(.accessory)
+// Never the active app: focus and the bar's app name stay on the window
+// you were using
+app.setActivationPolicy(.prohibited)
 
 func font(_ size: CGFloat, bold: Bool) -> NSFont {
     let f = NSFont(name: fontName + (bold ? " Bold" : ""), size: size)
