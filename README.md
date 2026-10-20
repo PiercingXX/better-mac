@@ -41,7 +41,7 @@ and waits for you to press Enter:
 
 | Pane | Turn on |
 |---|---|
-| Privacy > Accessibility | rift (+ `/opt/homebrew/bin/rift` if it isn't listed), Sol, piercing-gestures |
+| Privacy > Accessibility | rift (+ `/opt/homebrew/bin/rift` if it isn't listed), Sol, piercing-gestures, piercing-menubar |
 | Privacy > Screen & System Audio Recording | rift (the ⌥E screenshot keys) |
 | Privacy > Input Monitoring | karabiner_grabber, karabiner_observer |
 | Karabiner-Elements window | its driver extension and login items |
@@ -195,7 +195,7 @@ the last session.
 | piercing-dots (Linux) | better-mac (macOS) |
 |---|---|
 | Hyprland | [Rift](https://github.com/acsandmann/rift): BSP tiling (dwindle), animations, workspaces 1-10, 3-finger swipes, ⌥ + drag to move/swap. [AeroSpace](https://github.com/nikitabobko/AeroSpace) stays installed as a fallback but doesn't start at login |
-| waybar | [SketchyBar](https://github.com/FelixKratz/SketchyBar), with the macOS menu bar auto-hidden |
+| waybar | [SketchyBar](https://github.com/FelixKratz/SketchyBar), with the macOS menu bar auto-hidden; `piercing-menubar` (dots/menubar) stops the pointer 5pt short of the top edge so it never slides down |
 | Dock | hidden for good (1000s reveal delay); launch from keybinds or Sol, switch with ⌘Tab |
 | Hyprland borders | [JankyBorders](https://github.com/FelixKratz/JankyBorders) |
 | ulauncher / tap Super | Sol, opened by tapping Option or swiping up with 3 fingers |
@@ -231,6 +231,7 @@ dots/
 ├── borders/bordersrc
 ├── karabiner/           Option-tap launcher, Caps/Backspace, Piercing arrows
 ├── gestures/            piercing-gestures: Hyprland touchpad swipes (Swift, launchd)
+├── menubar/             piercing-menubar: keeps the hidden menu bar from revealing (Swift, launchd)
 ├── cursor/              piercing-cursor: Black-Minimalistic cursor theme (Swift, launchd)
 ├── bash/                pre.bash, post.bash, bash_profile
 ├── kitty/macos.conf

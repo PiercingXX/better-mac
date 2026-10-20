@@ -5,6 +5,7 @@
 #   borders   -> JankyBorders     ulauncher -> Sol
 #   kb_options caps:backspace, Super tap -> Karabiner-Elements
 #   touchpad gestures                   -> piercing-gestures (dots/gestures)
+#   no menu bar over the bar            -> piercing-menubar (dots/menubar)
 #   cursor theme (Black-Minimalistic)   -> piercing-cursor (dots/cursor)
 #   mako notifications                  -> piercing-notify (dots/notify)
 # AeroSpace stays installed as a fallback (its config is kept up to date) but
@@ -15,6 +16,7 @@ wm_install() {
     _wm_packages
     _wm_configs
     _wm_gestures
+    _wm_menubar
     _wm_cursor
     _wm_notify
     _wm_titlebars
@@ -57,6 +59,7 @@ _wm_configs() {
 # so privacy grants (Accessibility) survive rebuilds.
 _wm_swift() {
     local name="$1" id="${2:-}" src bin="$HOME/.local/bin/$1" sum
+    WM_SWIFT_BUILT=0
     src="$(ls "$BETTER_MAC_ROOT"/dots/*/"$name.swift" 2>/dev/null | head -n1)"
     [ -n "$src" ] || return 1
     sum="$(shasum -a 256 "$src" | cut -d' ' -f1)"
@@ -67,13 +70,34 @@ _wm_swift() {
         codesign --force -s - --identifier "$id" -r="designated => identifier \"$id\"" "$bin" || return 1
     fi
     printf '%s\n' "$sum" >"$bin.sha256"
+    WM_SWIFT_BUILT=1
+}
+
+# _wm_agent <label> <plist template> [restart]: install
+# ~/Library/LaunchAgents/<label>.plist (filling in @HOME@) and load it. A
+# loaded agent whose plist is unchanged is left registered, and only restarted
+# if _wm_swift just rebuilt its binary or "restart" is given: re-registering
+# makes macOS post another "Background Items Added" alert.
+_wm_agent() {
+    local label="$1" template="$2" agent="$HOME/Library/LaunchAgents/$1.plist" new
+    local target="gui/$(id -u)/$label"
+    new="$(sed "s|@HOME@|$HOME|g" "$template")"
+    if [ -f "$agent" ] && [ "$(cat "$agent")" = "$new" ] && launchctl print "$target" >/dev/null 2>&1; then
+        if [ "${WM_SWIFT_BUILT:-0}" -eq 1 ] || [ -n "${3:-}" ]; then
+            launchctl kickstart -k "$target"
+        fi
+        return 0
+    fi
+    mkdir -p "$(dirname "$agent")"
+    printf '%s\n' "$new" >"$agent"
+    launchctl bootout "$target" 2>/dev/null || true
+    launchctl bootstrap "gui/$(id -u)" "$agent"
 }
 
 # hyprland/keybinds.lua gestures: a small Swift helper run by launchd. Signed
 # with a fixed requirement so its Accessibility grant survives rebuilds.
 _wm_gestures() {
     local src="$BETTER_MAC_ROOT/dots/gestures" bin="$HOME/.local/bin/piercing-gestures"
-    local agent="$HOME/Library/LaunchAgents/com.piercingxx.gestures.plist"
     if [ "$DRY_RUN" -eq 1 ]; then
         dry "build piercing-gestures -> $bin, LaunchAgent com.piercingxx.gestures"
         return 0
@@ -82,11 +106,25 @@ _wm_gestures() {
         warn "piercing-gestures did not build; touchpad gestures are off."
         return 0
     fi
-    mkdir -p "$(dirname "$agent")"
-    sed "s|@HOME@|$HOME|g" "$src/com.piercingxx.gestures.plist" >"$agent"
-    launchctl bootout "gui/$(id -u)/com.piercingxx.gestures" 2>/dev/null || true
-    launchctl bootstrap "gui/$(id -u)" "$agent" || warn "piercing-gestures did not start."
+    _wm_agent com.piercingxx.gestures "$src/com.piercingxx.gestures.plist" || warn "piercing-gestures did not start."
     ok "Touchpad gestures: 3 fingers left/right workspaces, up Sol, 4 fingers down close."
+}
+
+# macOS can only auto-hide the menu bar, and it slides down over SketchyBar
+# whenever the pointer touches the top edge. piercing-menubar stops the
+# pointer just short of it. Same signing as piercing-gestures (Accessibility).
+_wm_menubar() {
+    local src="$BETTER_MAC_ROOT/dots/menubar" bin="$HOME/.local/bin/piercing-menubar"
+    if [ "$DRY_RUN" -eq 1 ]; then
+        dry "build piercing-menubar -> $bin, LaunchAgent com.piercingxx.menubar"
+        return 0
+    fi
+    if ! _wm_swift piercing-menubar com.piercingxx.menubar; then
+        warn "piercing-menubar did not build; the menu bar still slides down at the top edge."
+        return 0
+    fi
+    _wm_agent com.piercingxx.menubar "$src/com.piercingxx.menubar.plist" || warn "piercing-menubar did not start."
+    ok "Menu bar: the pointer stops short of the top edge, so it stays hidden."
 }
 
 # The piercing-dots cursor theme (Black-Minimalistic): another Swift helper,
@@ -95,7 +133,6 @@ _wm_gestures() {
 _wm_cursor() {
     local src="$BETTER_MAC_ROOT/dots/cursor" bin="$HOME/.local/bin/piercing-cursor"
     local theme="$HOME/.local/share/piercing-cursor"
-    local agent="$HOME/Library/LaunchAgents/com.piercingxx.cursor.plist"
     if [ "$DRY_RUN" -eq 1 ]; then
         dry "build piercing-cursor -> $bin, theme -> $theme, LaunchAgent com.piercingxx.cursor"
         return 0
@@ -107,10 +144,8 @@ _wm_cursor() {
     rm -rf "$theme"
     mkdir -p "$theme"
     cp "$src/cursors.tsv" "$src/"*.png "$theme/"
-    mkdir -p "$(dirname "$agent")"
-    sed "s|@HOME@|$HOME|g" "$src/com.piercingxx.cursor.plist" >"$agent"
-    launchctl bootout "gui/$(id -u)/com.piercingxx.cursor" 2>/dev/null || true
-    launchctl bootstrap "gui/$(id -u)" "$agent" || warn "piercing-cursor did not start."
+    # Restart even when unchanged: it only reads the theme files at launch
+    _wm_agent com.piercingxx.cursor "$src/com.piercingxx.cursor.plist" restart || warn "piercing-cursor did not start."
     ok "Cursor: Black-Minimalistic crosshair at 35pt."
 }
 
@@ -242,7 +277,7 @@ _wm_permissions() {
     fi
     say "A few switches only you can flip. Opening each settings pane:"
     open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-    wait_for_user "Accessibility: turn on rift, Sol and piercing-gestures (+ to add /opt/homebrew/bin/rift if it isn't listed)."
+    wait_for_user "Accessibility: turn on rift, Sol, piercing-gestures and piercing-menubar (+ to add /opt/homebrew/bin/rift if it isn't listed)."
     open "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
     wait_for_user "Input Monitoring: turn on karabiner_grabber and karabiner_observer."
     wait_for_user "Karabiner-Elements window: allow its driver extension and login items if it asks."
