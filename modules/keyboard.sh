@@ -7,6 +7,8 @@
 #     Karabiner rules (dots/karabiner) instead of the repo's hidutil agent:
 #     hidutil can't tell layouts apart and would stack on Karabiner's remaps.
 #   - AeroSpace binds follow the active layout (sketchybar/plugins/keyboard.sh)
+#   - Ctrl-Space is freed for the tmux prefix (same as on Arch); Globe and
+#     Ctrl-Option-Space still switch layouts
 
 PIERCING_KEYBOARD_REPO="https://github.com/PiercingXX/piercing-keyboard-layout.git"
 
@@ -15,8 +17,15 @@ keyboard_install() {
     if [ "$DRY_RUN" -eq 1 ]; then
         dry "piercing-num.keylayout -> ~/Library/Keyboard Layouts/"
         dry "remove any hidutil keyremap LaunchAgents (Karabiner owns those keys)"
+        dry "turn off Ctrl-Space 'Select the previous input source' (tmux prefix)"
         return 0
     fi
+
+    # Symbolic hotkey 60 = Select the previous input source (Ctrl-Space)
+    defaults write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add 60 \
+        '<dict><key>enabled</key><false/><key>value</key><dict><key>parameters</key><array><integer>32</integer><integer>49</integer><integer>262144</integer></array><key>type</key><string>standard</string></dict></dict>'
+    /System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings -u 2>/dev/null || true
+    ok "Ctrl-Space freed for the tmux prefix."
 
     local src="${PIERCING_KEYBOARD_DIR:-}" tmp=""
     if [ -z "$src" ]; then

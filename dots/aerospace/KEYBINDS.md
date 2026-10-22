@@ -6,7 +6,7 @@ Same binds as piercing-dots Hyprland, by key position:
 
 Letters follow the active input source, Colemak or Piercing Num, like Hyprland
 does (the SketchyBar layout item swaps AeroSpace's key map on every switch).
-Switch layouts with Ctrl-Space or the Globe key.
+Switch layouts with the Globe key or Ctrl-Option-Space (Ctrl-Space is the tmux prefix).
 
 ## Essentials
     tap ⌥              Sol launcher                (was: tap Super -> ulauncher)

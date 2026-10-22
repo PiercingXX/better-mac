@@ -286,5 +286,5 @@ _wm_permissions() {
     wait_for_user "Screen & System Audio Recording: turn on rift (the Option-E screenshot keys)."
     wait_for_user "Sol settings: hotkey Option-Space (tapping Option sends it), clipboard manager shortcut Option-Shift-Y."
     open "x-apple.systempreferences:com.apple.Keyboard-Settings.extension"
-    wait_for_user "Keyboard > Text Input > Edit: add Colemak and Piercing Num (under Others), remove U.S. Switch with Ctrl-Space or Globe."
+    wait_for_user "Keyboard > Text Input > Edit: add Colemak and Piercing Num (under Others), remove U.S. Switch with Globe or Ctrl-Option-Space."
 }
