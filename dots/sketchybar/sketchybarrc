@@ -62,7 +62,7 @@ sketchybar --add item front_app left \
                  icon.drawing=on icon.width=22 icon.padding_right=4 \
                  icon.background.drawing=on icon.background.image.scale=0.55 \
                  script="$PLUGIN_DIR/front_app.sh" \
-           --subscribe front_app front_app_switched system_woke
+           --subscribe front_app front_app_switched rift_workspace_change system_woke
 
 # ---- Right side, added right-to-left ----
 sketchybar --add item power right \
