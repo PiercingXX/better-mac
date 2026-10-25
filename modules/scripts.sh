@@ -4,7 +4,7 @@
 # piercing-dots resources/.scripts. Nothing is taken from piercing-dots here.
 # Linux-only scripts aren't carried over: the session launchers (start-*,
 # start-wm, start-session.sh, wm-logout-to-tty.sh), the launcher/clipboard/
-# emoji menus and touchpad toggle (Sol and macOS cover them), the
+# emoji menus and touchpad toggle (piercing-launcher and macOS cover them), the
 # volume/brightness OSDs and workspace-notify (native HUD, SketchyBar),
 # skippy-desk (GTK), keybinds.html (~/.config/aerospace/KEYBINDS.md) and
 # update-mirrors.sh (Arch). Also links /media -> /Volumes so the hardcoded

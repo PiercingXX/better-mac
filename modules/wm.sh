@@ -2,12 +2,13 @@
 # GitHub.com/PiercingXX
 # The piercing-dots Hyprland desktop, rebuilt from macOS parts:
 #   Hyprland  -> Rift             waybar   -> SketchyBar
-#   borders   -> JankyBorders     ulauncher -> Sol
+#   borders   -> JankyBorders
 #   kb_options caps:backspace, Super tap -> Karabiner-Elements
 #   touchpad gestures                   -> piercing-gestures (dots/gestures)
 #   no menu bar over the bar            -> piercing-menubar (dots/menubar)
 #   cursor theme (Black-Minimalistic)   -> piercing-cursor (dots/cursor)
 #   mako notifications                  -> piercing-notify (dots/notify)
+#   ulauncher                           -> piercing-launcher (dots/launcher)
 # AeroSpace stays installed as a fallback (its config is kept up to date) but
 # doesn't start at login; the bar, gestures and scripts follow whichever runs.
 
@@ -20,6 +21,7 @@ wm_install() {
     _wm_menubar
     _wm_cursor
     _wm_notify
+    _wm_launcher
     _wm_titlebars
     _wm_piercing_dots
     _wm_defaults
@@ -31,7 +33,7 @@ wm_install() {
 _wm_packages() {
     run brew tap FelixKratz/formulae
     run brew tap acsandmann/tap
-    brew_cask nikitabobko/tap/aerospace karabiner-elements sol \
+    brew_cask nikitabobko/tap/aerospace karabiner-elements \
         font-jetbrains-mono-nerd-font font-fira-sans
     brew_formula acsandmann/tap/rift FelixKratz/formulae/sketchybar FelixKratz/formulae/borders \
         switchaudio-osx sshpass jq
@@ -66,10 +68,14 @@ _wm_swift() {
     sum="$(shasum -a 256 "$src" | cut -d' ' -f1)"
     [ -x "$bin" ] && [ "$(cat "$bin.sha256" 2>/dev/null)" = "$sum" ] && return 0
     mkdir -p "$(dirname "$bin")"
-    swiftc -O -o "$bin" "$src" || return 1
+    # Build beside it and move it in: overwriting a signed binary in place
+    # leaves the kernel's cached signature stale, and launchd kills it
+    # (OS_REASON_CODESIGNING)
+    swiftc -O -o "$bin.new" "$src" || return 1
     if [ -n "$id" ]; then
-        codesign --force -s - --identifier "$id" -r="designated => identifier \"$id\"" "$bin" || return 1
+        codesign --force -s - --identifier "$id" -r="designated => identifier \"$id\"" "$bin.new" || return 1
     fi
+    mv -f "$bin.new" "$bin"
     printf '%s\n' "$sum" >"$bin.sha256"
     WM_SWIFT_BUILT=1
 }
@@ -108,7 +114,7 @@ _wm_gestures() {
         return 0
     fi
     _wm_agent com.piercingxx.gestures "$src/com.piercingxx.gestures.plist" || warn "piercing-gestures did not start."
-    ok "Touchpad gestures: 3 fingers left/right workspaces, up Sol, 4 fingers down close."
+    ok "Touchpad gestures: 3 fingers left/right workspaces, up the launcher, 4 fingers down close."
 }
 
 # macOS can only auto-hide the menu bar, and it slides down over SketchyBar
@@ -162,6 +168,25 @@ _wm_notify() {
     else
         warn "piercing-notify did not build; the scripts use Notification Center."
     fi
+}
+
+# ulauncher: piercing-launcher, run by launchd. Option+Space (tapping Option)
+# toggles it; Carbon's hotkey needs no permissions. Sol held that hotkey, so a
+# Sol left over from an older install is quit and dropped from login items.
+_wm_launcher() {
+    local src="$BETTER_MAC_ROOT/dots/launcher"
+    if [ "$DRY_RUN" -eq 1 ]; then
+        dry "build piercing-launcher -> ~/.local/bin/piercing-launcher, LaunchAgent com.piercingxx.launcher, retire Sol"
+        return 0
+    fi
+    osascript -e 'quit app "Sol"' 2>/dev/null || true
+    osascript -e 'tell application "System Events" to delete (every login item whose name is "Sol")' >/dev/null 2>&1 || true
+    if ! _wm_swift piercing-launcher; then
+        warn "piercing-launcher did not build; tapping Option opens nothing."
+        return 0
+    fi
+    _wm_agent com.piercingxx.launcher "$src/com.piercingxx.launcher.plist" || warn "piercing-launcher did not start."
+    ok "Launcher: tap Option or swipe up with 3 fingers (apps, math, ~/ paths, g/so/wiki)."
 }
 
 # Hyprland windows have no title bar or buttons. kitty's are hidden in its
@@ -220,7 +245,7 @@ _wm_piercing_dots() {
 _wm_defaults() {
     # SketchyBar replaces the menu bar; it still slides down at the top edge
     run defaults write NSGlobalDomain _HIHideMenuBar -bool true
-    # Everything launches from keybinds/Sol: the Dock auto-hides with a
+    # Everything launches from keybinds/the launcher: the Dock auto-hides with a
     # 1000s reveal delay, so the screen edge never brings it up
     run defaults write com.apple.dock autohide -bool true
     run defaults write com.apple.dock autohide-delay -float 1000
@@ -266,25 +291,22 @@ _wm_start() {
     run rift service install || warn "Rift's login service was not installed."
     run rift service restart || warn "Rift did not start."
     run open -a Karabiner-Elements
-    run open -b com.ospfranco.sol
-    login_item /Applications/Sol.app
 }
 
 # macOS only lets a person grant these, so open each pane and wait
 _wm_permissions() {
     if [ "$DRY_RUN" -eq 1 ]; then
-        dry "walk through Accessibility, Input Monitoring, Karabiner, Sol and keyboard settings"
+        dry "walk through Accessibility, Input Monitoring, Karabiner and keyboard settings"
         return 0
     fi
     say "A few switches only you can flip. Opening each settings pane:"
     open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-    wait_for_user "Accessibility: turn on rift, Sol, piercing-gestures and piercing-menubar (+ to add /opt/homebrew/bin/rift if it isn't listed)."
+    wait_for_user "Accessibility: turn on rift, piercing-gestures and piercing-menubar (+ to add /opt/homebrew/bin/rift if it isn't listed)."
     open "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
     wait_for_user "Input Monitoring: turn on karabiner_grabber and karabiner_observer."
     wait_for_user "Karabiner-Elements window: allow its driver extension and login items if it asks."
     open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
     wait_for_user "Screen & System Audio Recording: turn on rift (the Option-E screenshot keys)."
-    wait_for_user "Sol settings: hotkey Option-Space (tapping Option sends it), clipboard manager shortcut Option-Shift-Y."
     open "x-apple.systempreferences:com.apple.Keyboard-Settings.extension"
     wait_for_user "Keyboard > Text Input > Edit: add Colemak and Piercing Num (under Others), remove U.S. Switch with Globe or Ctrl-Option-Space."
 }

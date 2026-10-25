@@ -41,17 +41,16 @@ and waits for you to press Enter:
 
 | Pane | Turn on |
 |---|---|
-| Privacy > Accessibility | rift (+ `/opt/homebrew/bin/rift` if it isn't listed), Sol, piercing-gestures, piercing-menubar |
+| Privacy > Accessibility | rift (+ `/opt/homebrew/bin/rift` if it isn't listed), piercing-gestures, piercing-menubar |
 | Privacy > Screen & System Audio Recording | rift (the ⌥E screenshot keys) |
 | Privacy > Input Monitoring | karabiner_grabber, karabiner_observer |
 | Karabiner-Elements window | its driver extension and login items |
-| Sol welcome window | hotkey **⌥ Space** (tapping Option sends it), clipboard shortcut **⌥ ⇧ Y** (the script adds Sol as a login item) |
 | Keyboard > Text Input > Edit | add **Colemak** and **Piercing Num** (under Others), remove U.S. |
 
 ### 4. Reboot
 
 The menu bar auto-hide, Spaces, dark mode and trackpad settings apply after a
-fresh login, and `/media` (see `modules/scripts.sh`) appears after a reboot. Rift, SketchyBar, borders, Karabiner, Sol and Tailscale start at login from
+fresh login, and `/media` (see `modules/scripts.sh`) appears after a reboot. Rift, SketchyBar, borders, Karabiner, piercing-launcher and Tailscale start at login from
 then on.
 
 ### 5. First launches
@@ -151,7 +150,7 @@ piercing-dots configs, with small macOS fixes applied to a copy:
 better-mac's own macOS copy of your piercing-dots `.scripts`, kept in
 `dots/scripts/` and installed as-is; nothing in `~/.scripts` comes from
 piercing-dots. The Linux-only scripts aren't included: session launchers,
-Sol-covered helpers, volume/brightness, workspace-notify, skippy-desk,
+launcher/clipboard/emoji menus, volume/brightness, workspace-notify, skippy-desk,
 keybinds.html and update-mirrors.
 
 | | macOS version |
@@ -199,11 +198,11 @@ the last session.
 |---|---|
 | Hyprland | [Rift](https://github.com/acsandmann/rift): BSP tiling (dwindle), animations, workspaces 1-10, 3-finger swipes, ⌥ + drag to move/swap. [AeroSpace](https://github.com/nikitabobko/AeroSpace) stays installed as a fallback but doesn't start at login |
 | waybar | [SketchyBar](https://github.com/FelixKratz/SketchyBar), with the macOS menu bar auto-hidden; `piercing-menubar` (dots/menubar) stops the pointer 5pt short of the top edge so it never slides down |
-| Dock | hidden for good (1000s reveal delay); launch from keybinds or Sol, switch with ⌘Tab |
+| Dock | hidden for good (1000s reveal delay); launch from keybinds or the launcher, switch with ⌘Tab |
 | Hyprland borders | [JankyBorders](https://github.com/FelixKratz/JankyBorders) |
-| ulauncher / tap Super | Sol, opened by tapping Option or swiping up with 3 fingers |
+| ulauncher / tap Super | `piercing-launcher` (dots/launcher), Ulauncher with your Aura theme: tap Option or swipe up with 3 fingers. Apps (recent ones on open), math (Enter copies), `~/` and `/` paths (Tab completes, ⌥Enter opens a folder in Finder), `g`/`so`/`wiki` searches, ⌥1-9 picks a row, Ctrl+J/K moves |
 | mako notifications | `piercing-notify` (dots/notify): dark popups under the bar, replaced by key, stacked, click to dismiss |
-| Hyprland touchpad gestures | `piercing-gestures` (dots/gestures): 3 fingers left/right walk the workspaces in use and open one new one past the last, up opens Sol, 4 down closes |
+| Hyprland touchpad gestures | `piercing-gestures` (dots/gestures): 3 fingers left/right walk the workspaces in use and open one new one past the last, up opens the launcher, 4 down closes |
 | window decorations off | kitty and Waterfox (`dots/waterfox` userChrome.css) have no title bar buttons |
 | input repeat_rate / delay | held keys repeat (no accent picker), 30ms rate after 225ms |
 | hyprpaper | wallpaper `~/Pictures/backgrounds/1346578.jpg` |
