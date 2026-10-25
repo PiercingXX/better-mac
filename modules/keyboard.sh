@@ -3,7 +3,7 @@
 # Colemak (built into macOS) + Piercing Num from
 # github.com/PiercingXX/piercing-keyboard-layout:
 #   - piercing-num.keylayout -> ~/Library/Keyboard Layouts
-#   - Caps=Backspace, Backspace=Delete (Piercing only) and the AltGr arrows are
+#   - Caps=Backspace, Backspace=Delete (every layout) and the AltGr arrows are
 #     Karabiner rules (dots/karabiner) instead of the repo's hidutil agent:
 #     hidutil can't tell layouts apart and would stack on Karabiner's remaps.
 #   - AeroSpace binds follow the active layout (sketchybar/plugins/keyboard.sh)

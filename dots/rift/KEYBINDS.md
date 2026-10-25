@@ -23,7 +23,7 @@ Switch layouts with the Globe key or Ctrl-Option-Space (Ctrl-Space is the tmux p
     ⌥ ⇧ ;              reload Rift config
     ⌥ /                this file
     Caps Lock          Backspace                   (both layouts)
-    Backspace          Forward Delete              (Piercing Num)
+    Backspace          Forward Delete              (every layout)
     Right ⌥ + h/j/k/l  arrows                      (Piercing Num, AltGr arrows)
     ⌥ E                screenshot a region         (was: Print)
     ⌥ ⇧ E              screenshot a window         (was: Shift + Print)
