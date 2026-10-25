@@ -65,8 +65,19 @@
                         ]
                     },
                     {
-                        "description": "Backspace key = Forward Delete (every layout; Caps Lock is Backspace)",
+                        "description": "Backspace key = Forward Delete (every layout; Caps Lock is Backspace); Cmd+it in Finder stays Cmd+Backspace (Trash)",
                         "manipulators": [
+                            {
+                                "type": "basic",
+                                "from": {
+                                    "key_code": "delete_or_backspace",
+                                    "modifiers": { "mandatory": ["command"], "optional": ["shift", "option"] }
+                                },
+                                "to": [{ "key_code": "delete_or_backspace", "modifiers": ["left_command"] }],
+                                "conditions": [
+                                    { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.apple\\.finder$"] }
+                                ]
+                            },
                             {
                                 "type": "basic",
                                 "from": {
