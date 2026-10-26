@@ -7,9 +7,11 @@
 // for AeroSpace or Rift, whichever is running. Under Rift, left/right go
 // through wm-workspace-swipe.sh, which skips unused workspaces and opens one
 // new one past the last, like Hyprland.
-// Reads trackpad touches from a listen-only event tap, so it needs
-// Accessibility. macOS's own 3-finger swipes and 4-finger vertical swipes are
-// turned off by modules/wm.sh so they don't fire alongside these.
+// Reads trackpad touches from an event tap, so it needs Accessibility.
+// macOS's own 3-finger swipes and 4-finger vertical swipes are turned off by
+// modules/wm.sh so they don't fire alongside these. With them off, macOS hands
+// a 3-finger swipe to apps as a sideways scroll, and Waterfox goes back a
+// page: scrolling is swallowed while 3+ fingers are down, momentum included.
 //
 //   piercing-gestures           run (launchd: com.piercingxx.gestures)
 //   piercing-gestures --debug   also print every gesture it sees
@@ -98,10 +100,21 @@ func handle(_ touches: Set<NSTouch>) {
 }
 
 var tap: CFMachPort?
+// Set by a swallowed scroll; its momentum (after the fingers lift) goes too
+var swallowing = false
 
 let callback: CGEventTapCallBack = { _, type, event, _ in
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
         if let tap = tap { CGEvent.tapEnable(tap: tap, enable: true) }
+        return Unmanaged.passUnretained(event)
+    }
+    if type == .scrollWheel {
+        let momentum = event.getIntegerValueField(.scrollWheelEventMomentumPhase) != 0
+        if fingers >= 3 || (swallowing && momentum) {
+            swallowing = true
+            return nil
+        }
+        swallowing = false
         return Unmanaged.passUnretained(event)
     }
     if let ns = NSEvent(cgEvent: event) {
@@ -114,8 +127,9 @@ let callback: CGEventTapCallBack = { _, type, event, _ in
 
 func startTap() -> Bool {
     let mask = CGEventMask(1) << CGEventMask(NSEvent.EventType.gesture.rawValue)
+        | CGEventMask(1) << CGEventMask(CGEventType.scrollWheel.rawValue)
     guard let t = CGEvent.tapCreate(tap: .cghidEventTap, place: .headInsertEventTap,
-                                    options: .listenOnly, eventsOfInterest: mask,
+                                    options: .defaultTap, eventsOfInterest: mask,
                                     callback: callback, userInfo: nil) else { return false }
     tap = t
     let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, t, 0)
