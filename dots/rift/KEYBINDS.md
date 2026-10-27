@@ -40,7 +40,7 @@ Switch layouts with the Globe key or Ctrl-Option-Space (Ctrl-Space is the tmux p
 ## Apps
     ⌥ W  kitty         ⌥ T  kitty + tmux       ⌥ Z  yazi          ⌥ ⇧ Z  Finder
     ⌥ C  Waterfox      ⌥ D  Discord            ⌥ B  Obsidian      ⌥ G    GIMP
-    ⌥ V  nvim          ⌥ ⇧ V  OpenCode         ⌥ ⌘ V  VS Code
+    ⌥ V  nvim          ⌥ ⇧ V  OpenCode
     Ctrl ⌘ Backspace   Activity Monitor        (was: Ctrl Alt Del -> Mission Center)
 
 ## Notes / server / AI   (run your ~/.scripts in kitty)

@@ -109,7 +109,6 @@ on-window-detected = [
     alt-d = 'exec-and-forget open -a Discord'
     alt-v = 'exec-and-forget kitty -1 -d ~ nvim'
     alt-shift-v = 'exec-and-forget open -a OpenCode'
-    alt-cmd-v = 'exec-and-forget open -a "Visual Studio Code"'
     alt-b = 'exec-and-forget open -a Obsidian'
     alt-g = 'exec-and-forget open -a GIMP'
     ctrl-cmd-backspace = 'exec-and-forget open -a "Activity Monitor"'

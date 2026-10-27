@@ -195,7 +195,6 @@ app_rules = [
 "Alt + D" = { exec = ["open", "-a", "Discord"] }
 "Alt + V" = { exec = ["/bin/bash", "-c", "kitty -1 -d ~ nvim"] }
 "Alt + Shift + V" = { exec = ["open", "-a", "OpenCode"] }
-"Alt + Meta + V" = { exec = ["open", "-a", "Visual Studio Code"] }
 "Alt + B" = { exec = ["open", "-a", "Obsidian"] }
 "Alt + G" = { exec = ["open", "-a", "GIMP"] }
 "Ctrl + Meta + Backspace" = { exec = ["open", "-a", "Activity Monitor"] }

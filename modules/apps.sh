@@ -14,11 +14,11 @@ apps_install() {
 
 _apps_packages() {
     # Apps the AeroSpace keybinds launch (also the Dock favorites)
-    brew_cask waterfox discord obsidian gimp visual-studio-code opencode-desktop
+    brew_cask waterfox discord obsidian gimp opencode-desktop
     # flatpaks/AUR from step-1.sh and linux-mod: LibreOffice, qBittorrent,
-    # GitHub Desktop, ProtonVPN, Synology Drive + Chat, Tailscale;
+    # GitHub Desktop, ProtonVPN, Synology Drive, Tailscale;
     # ttf-nerd-fonts-symbols
-    brew_cask libreoffice qbittorrent github protonvpn synology-drive synology-chat \
+    brew_cask libreoffice qbittorrent github protonvpn synology-drive \
         tailscale-app font-symbols-only-nerd-font
     # nvtop doesn't support Apple GPUs; macmon shows GPU/CPU/power instead
     brew_formula htop btop lnav macmon mpv ranger cava

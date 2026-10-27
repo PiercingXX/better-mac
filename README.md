@@ -131,9 +131,8 @@ piercing-dots configs, with small macOS fixes applied to a copy:
 
 ### `modules/apps.sh`: apps from step-1.sh
 
-- Waterfox, Discord, Obsidian, GIMP, VS Code, OpenCode, LibreOffice,
-  qBittorrent, GitHub Desktop, ProtonVPN, Synology Drive, Synology Chat,
-  Tailscale.
+- Waterfox, Discord, Obsidian, GIMP, OpenCode, LibreOffice,
+  qBittorrent, GitHub Desktop, ProtonVPN, Synology Drive, Tailscale.
 - htop, btop, lnav, mpv, ranger, and macmon (nvtop doesn't support Apple GPUs).
 - cava, plus gum, blueutil, clamav and rsync for the scripts below.
 - No "is an app downloaded from the Internet" prompts: the quarantine tag is
@@ -183,8 +182,8 @@ in your note scripts and nvim config resolves to a share mounted as
 Dark mode, 24h clock with weekday, battery %, reduced animations, tap to
 click, natural scroll, flat mouse acceleration, sleep 60 min on power / 30 on
 battery with the screen off at 15, no dimming, Trash auto-empty (30 days, the
-macOS minimum), hot corners off, Dock holds your GNOME favorites minus VS Code (Finder,
-Waterfox, LibreOffice, Calculator, Obsidian, Synology Chat; it stays hidden,
+macOS minimum), hot corners off, Dock holds your GNOME favorites minus VS Code and Synology
+Chat (Finder, Waterfox, LibreOffice, Calculator, Obsidian; it stays hidden,
 see below), Night Shift 20:00-04:00 at its warmest,
 firewall on, Remote Login (SSH) on, startup chime on (`set_boot_beep.sh`).
 Safari can't be removed, so Waterfox becomes the default browser (`duti`) and a

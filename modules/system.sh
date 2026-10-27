@@ -101,12 +101,12 @@ _system_finder_dock() {
         run defaults write com.apple.dock "wvous-$corner-corner" -int 0
         run defaults write com.apple.dock "wvous-$corner-modifier" -int 0
     done
-    # GNOME favorite-apps minus VS Code. Finder (Nautilus) is always first.
+    # GNOME favorite-apps minus VS Code and Synology Chat. Finder (Nautilus)
+    # is always first.
     run dockutil --remove all --no-restart
     local app
     for app in /Applications/Waterfox.app /Applications/LibreOffice.app \
-               /System/Applications/Calculator.app /Applications/Obsidian.app \
-               "/Applications/Synology Chat.app"; do
+               /System/Applications/Calculator.app /Applications/Obsidian.app; do
         if [ "$DRY_RUN" -eq 1 ] || [ -d "$app" ]; then
             run dockutil --add "$app" --no-restart
         fi
