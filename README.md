@@ -187,6 +187,9 @@ macOS minimum), hot corners off, Dock holds your GNOME favorites minus VS Code (
 Waterfox, LibreOffice, Calculator, Obsidian, Synology Chat; it stays hidden,
 see below), Night Shift 20:00-04:00 at its warmest,
 firewall on, Remote Login (SSH) on, startup chime on (`set_boot_beep.sh`).
+Safari can't be removed, so Waterfox becomes the default browser (`duti`) and a
+LaunchAgent (`dots/safari`) quits Safari within 2 seconds of it opening. Remove
+`~/Library/LaunchAgents/com.piercingxx.nosafari.plist` to allow it again.
 Like a Linux session it also: repeats held keys instead of showing the accent
 picker, uses the Graphite accent instead of blue, resizes windows instantly,
 doesn't enlarge the cursor on shake, and never reopens apps or windows from

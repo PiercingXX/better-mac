@@ -5,7 +5,7 @@
 
 system_install() {
     say "Applying macOS settings..."
-    brew_formula dockutil smudge/smudge/nightlight
+    brew_formula dockutil duti smudge/smudge/nightlight
     _system_appearance
     _system_input
     _system_power
@@ -14,6 +14,7 @@ system_install() {
     _system_screenshots
     _system_notifications
     _system_stock_apps
+    _system_safari
     _system_night_shift
     _system_services
     # set_boot_beep.sh: the startup chime (Apple Silicon mutes it by default)
@@ -189,6 +190,28 @@ _system_stock_apps() {
                         "/Library/Application Support/Logic" \
                         "/Library/Audio/Apple Loops"
     fi
+}
+
+# Safari can't be uninstalled (sealed system volume), so Waterfox takes over
+# links and Safari is quit by a LaunchAgent as soon as anything opens it.
+_system_safari() {
+    local id="net.waterfox.waterfox" plist="/Applications/Waterfox.app/Contents/Info.plist"
+    if [ "$DRY_RUN" -eq 0 ] && [ -f "$plist" ]; then
+        id="$(defaults read "${plist%.plist}" CFBundleIdentifier 2>/dev/null || echo "$id")"
+    fi
+    local t
+    for t in http https public.html public.xhtml; do
+        run duti -s "$id" "$t" all || warn "Could not make Waterfox the default for $t."
+    done
+    # macOS asks to confirm a new default browser
+    ok "Waterfox is the default browser (confirm the macOS prompt if it appears)."
+    if [ "$DRY_RUN" -eq 1 ]; then
+        dry "LaunchAgent com.piercingxx.nosafari (quits Safari every 2s)"
+        return 0
+    fi
+    _wm_agent com.piercingxx.nosafari "$BETTER_MAC_ROOT/dots/safari/com.piercingxx.nosafari.plist" \
+        || warn "Safari blocker did not start."
+    ok "Safari is blocked from launching."
 }
 
 _system_night_shift() {
