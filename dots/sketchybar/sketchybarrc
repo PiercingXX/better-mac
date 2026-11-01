@@ -2,7 +2,7 @@
 # GitHub.com/PiercingXX
 # piercing-dots waybar (dots/waybar), rebuilt for SketchyBar + Rift (or AeroSpace).
 # Left: workspaces + focused app. Time just left of the MacBook notch, date just
-# right of it. Right: tray (Tailscale, Discord, Wi-Fi), volume, bluetooth, battery, power.
+# right of it. Right: tray (Tailscale, Discord, xx-drive, Wi-Fi), volume, bluetooth, battery, power.
 
 PLUGIN_DIR="$CONFIG_DIR/plugins"
 
@@ -90,6 +90,12 @@ sketchybar --add item wifi right \
            --set wifi update_freq=30 label.drawing=off script="$PLUGIN_DIR/tray.sh" \
                  click_script="kitty -1 -d ~ ~/.scripts/PiercingXX-Settings-Menu/wifi-manager.sh" \
            --subscribe wifi wifi_change system_woke
+
+# ---- xx-drive: its menu bar icon, dimmed while the app isn't running ----
+sketchybar --add item xxdrive right \
+           --set xxdrive update_freq=30 icon="󰆼" label.drawing=off script="$PLUGIN_DIR/tray.sh" \
+                 click_script="open -a xx-drive" \
+           --subscribe xxdrive system_woke
 
 # ---- Discord: its tray icon, shown only while Discord runs (click: open it) ----
 sketchybar --add item discord right \
