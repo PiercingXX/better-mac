@@ -4,7 +4,8 @@
 # names most menu bar icons "Item-0", so they can't be mirrored):
 #   tailscale   tray icon, dimmed when Tailscale isn't connected
 #   xxdrive     tray icon, dimmed when xx-drive isn't running
-#   discord     tray icon, shown only while Discord is running
+#   discord     tray icon, shown only while Discord is running; its
+#               right-click menu closes when the pointer leaves
 #   wifi        nm-applet: Wi-Fi, Ethernet or disconnected
 #   bluetooth   shown only while Bluetooth is on (format-off: "")
 
@@ -33,7 +34,9 @@ case "$NAME" in
         fi
         ;;
     discord)
-        if pgrep -xq Discord; then
+        if [ "$SENDER" = mouse.exited.global ]; then
+            sketchybar --set "$NAME" popup.drawing=off
+        elif pgrep -xq Discord; then
             sketchybar --set "$NAME" drawing=on icon.color=$ON
         else
             sketchybar --set "$NAME" drawing=off

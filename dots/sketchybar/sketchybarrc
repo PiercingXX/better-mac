@@ -97,11 +97,19 @@ sketchybar --add item xxdrive right \
                  click_script="open -a xx-drive" \
            --subscribe xxdrive system_woke
 
-# ---- Discord: its tray icon, shown only while Discord runs (click: open it) ----
+# ---- Discord: its tray icon, shown only while Discord runs. Left click opens
+# it; right click opens a menu with Quit, like the tray icon's menu ----
+DISCORD_CLICK='if [ "$BUTTON" = right ]; then sketchybar --set discord popup.drawing=toggle; else open -a Discord; fi'
+DISCORD_QUIT="sketchybar --set discord popup.drawing=off; osascript -e 'quit app \"Discord\"'"
 sketchybar --add item discord right \
            --set discord update_freq=10 icon="󰙯" label.drawing=off script="$PLUGIN_DIR/tray.sh" \
-                 click_script="open -a Discord" \
-           --subscribe discord front_app_switched system_woke
+                 click_script="$DISCORD_CLICK" \
+                 popup.align=right popup.background.color=$PILL popup.background.corner_radius=10 \
+                 popup.background.border_width=1 popup.background.border_color=0xff444444 \
+           --subscribe discord front_app_switched system_woke mouse.exited.global \
+           --add item discord.quit popup.discord \
+           --set discord.quit icon="󰐥" label="Quit Discord" \
+                 padding_left=8 padding_right=8 click_script="$DISCORD_QUIT"
 
 sketchybar --add item tailscale right \
            --set tailscale update_freq=30 icon="󰖂" label.drawing=off script="$PLUGIN_DIR/tray.sh" \
