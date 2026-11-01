@@ -3,6 +3,7 @@
 # The waybar tray and bluetooth module, drawn by SketchyBar itself (macOS 26
 # names most menu bar icons "Item-0", so they can't be mirrored):
 #   tailscale   tray icon, dimmed when Tailscale isn't connected
+#   discord     tray icon, shown only while Discord is running
 #   wifi        nm-applet: Wi-Fi, Ethernet or disconnected
 #   bluetooth   shown only while Bluetooth is on (format-off: "")
 
@@ -19,6 +20,13 @@ case "$NAME" in
             sketchybar --set "$NAME" drawing=on icon.color=$ON
         else
             sketchybar --set "$NAME" drawing=on icon.color=$DIM
+        fi
+        ;;
+    discord)
+        if pgrep -xq Discord; then
+            sketchybar --set "$NAME" drawing=on icon.color=$ON
+        else
+            sketchybar --set "$NAME" drawing=off
         fi
         ;;
     wifi)
