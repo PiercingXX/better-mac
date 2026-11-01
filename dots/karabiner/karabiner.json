@@ -449,6 +449,16 @@
                                 ]
                             }
                         ]
+                    },
+                    {
+                        "description": "F6 (Do Not Disturb) = keyboard backlight presets; Apple Silicon keyboards have no backlight keys",
+                        "manipulators": [
+                            {
+                                "type": "basic",
+                                "from": { "key_code": "f6" },
+                                "to": [{ "shell_command": "~/.scripts/Control-Scripts/kbd-backlight-notify.sh" }]
+                            }
+                        ]
                     }
                 ]
             }

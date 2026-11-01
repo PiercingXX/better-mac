@@ -9,6 +9,7 @@
 #   cursor theme (Black-Minimalistic)   -> piercing-cursor (dots/cursor)
 #   mako notifications                  -> piercing-notify (dots/notify)
 #   ulauncher                           -> piercing-launcher (dots/launcher)
+#   keyboard backlight key (F6)         -> piercing-kbd (dots/kbd)
 # AeroSpace stays installed as a fallback (its config is kept up to date) but
 # doesn't start at login; the bar, gestures and scripts follow whichever runs.
 
@@ -21,6 +22,7 @@ wm_install() {
     _wm_menubar
     _wm_cursor
     _wm_notify
+    _wm_kbd
     _wm_launcher
     _wm_titlebars
     _wm_piercing_dots
@@ -167,6 +169,21 @@ _wm_notify() {
         ok "Notifications: Linux-style popups under the bar."
     else
         warn "piercing-notify did not build; the scripts use Notification Center."
+    fi
+}
+
+# Keyboard backlight: Apple Silicon keyboards have no backlight keys, so F6
+# (Do Not Disturb) steps through presets; Karabiner runs
+# ~/.scripts/Control-Scripts/kbd-backlight-notify.sh, which calls piercing-kbd.
+_wm_kbd() {
+    if [ "$DRY_RUN" -eq 1 ]; then
+        dry "build piercing-kbd -> ~/.local/bin/piercing-kbd"
+        return 0
+    fi
+    if _wm_swift piercing-kbd; then
+        ok "Keyboard backlight: F6 steps through off, 5, 30, 60 and 90%."
+    else
+        warn "piercing-kbd did not build; F6 does nothing."
     fi
 }
 

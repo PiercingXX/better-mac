@@ -67,3 +67,4 @@ Switch layouts with the Globe key or Ctrl-Option-Space (Ctrl-Space is the tmux p
     ⌥ O                next audio output
     ⌥ P                time notification       ⌥ ⇧ P  calendar notification      ⌥ ⇧ C  Calculator
     Media/brightness keys work natively.
+    F6 (Do Not Disturb)  keyboard backlight: off, 5, 30, 60, 90%
