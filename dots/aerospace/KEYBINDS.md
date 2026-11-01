@@ -9,7 +9,8 @@ does (the SketchyBar layout item swaps AeroSpace's key map on every switch).
 Switch layouts with the Globe key or Ctrl-Option-Space (Ctrl-Space is the tmux prefix).
 
 ## Essentials
-    tap ⌥              Sol launcher                (was: tap Super -> ulauncher)
+    tap left ⌥         Sol launcher                (was: tap Super -> ulauncher)
+    tap right ⌥        screenshot a region         (was: Print; ⇧ screen, ⌘ window)
     ⌥ Q                close window
     ⌥ ⇧ Q              force-quit app
     ⌥ F                toggle float

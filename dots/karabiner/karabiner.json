@@ -12,7 +12,7 @@
             "complex_modifications": {
                 "rules": [
                     {
-                        "description": "Tap left or right Option alone: Option+Space (Sol), like tapping Super for the launcher",
+                        "description": "Tap left Option alone: Option+Space (the launcher), like tapping Super for the launcher",
                         "manipulators": [
                             {
                                 "type": "basic",
@@ -24,6 +24,33 @@
                                 "to_if_alone": [
                                     { "key_code": "spacebar", "modifiers": ["left_option"] }
                                 ]
+                            }
+                        ]
+                    },
+                    {
+                        "description": "Tap Right Option alone = Print Screen: region; Shift = whole screen; Cmd = window (held, it is still Option)",
+                        "manipulators": [
+                            {
+                                "type": "basic",
+                                "from": {
+                                    "key_code": "right_option",
+                                    "modifiers": { "mandatory": ["shift"], "optional": ["caps_lock"] }
+                                },
+                                "to": [{ "key_code": "right_option", "lazy": true }],
+                                "to_if_alone": [
+                                    { "shell_command": "~/.scripts/Control-Scripts/wm-screenshot.sh full" }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "from": {
+                                    "key_code": "right_option",
+                                    "modifiers": { "mandatory": ["command"], "optional": ["caps_lock"] }
+                                },
+                                "to": [{ "key_code": "right_option", "lazy": true }],
+                                "to_if_alone": [
+                                    { "shell_command": "~/.scripts/Control-Scripts/wm-screenshot.sh window" }
+                                ]
                             },
                             {
                                 "type": "basic",
@@ -33,7 +60,7 @@
                                 },
                                 "to": [{ "key_code": "right_option", "lazy": true }],
                                 "to_if_alone": [
-                                    { "key_code": "spacebar", "modifiers": ["left_option"] }
+                                    { "shell_command": "~/.scripts/Control-Scripts/wm-screenshot.sh region" }
                                 ]
                             }
                         ]

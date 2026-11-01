@@ -9,7 +9,8 @@ does (Rift rebuilds its key map whenever the source changes).
 Switch layouts with the Globe key or Ctrl-Option-Space (Ctrl-Space is the tmux prefix).
 
 ## Essentials
-    tap ⌥              Sol launcher                (was: tap Super -> ulauncher)
+    tap left ⌥         Sol launcher                (was: tap Super -> ulauncher)
+    tap right ⌥        screenshot a region         (was: Print; ⇧ screen, ⌘ window)
     ⌥ Q                close window
     ⌥ ⇧ Q              force-quit app
     ⌥ F                toggle float
