@@ -158,7 +158,9 @@ keybinds.html and update-mirrors.
 | notifiers | `notify-time`/`notify-calendar` (⌥P / ⌥⇧P), plus battery, network, Bluetooth and update notifiers started at login by Rift |
 | `toggle-topbar.sh` | ⌥R hides SketchyBar and closes its gap; the state survives logins |
 | `wm-lock.sh`, `wm-screenshot.sh` | lock screen (⌥\`); `screencapture` to `~/Pictures/Screenshots` + clipboard (⌥E / ⌥⇧E / ⌥⌘E; ⌘⇧3/4/5 still work) |
-| `setup-claude-accounts.sh`, `github-clone-all.sh` | Keychain-aware status; clones into `~/GitHub` |
+| `setup-claude-accounts.sh` | run during install: `claude1`–`claude6` + `claude-status`, one shared `~/.claude` memory; status reads each account's login from the Keychain |
+| `setup-grok-accounts.sh` | run during install: `grok1`–`grok4` + `grok-status`, one shared `~/.grok` memory (unchanged; Grok keeps logins in `auth.json` on macOS too) |
+| `github-clone-all.sh` | clones into `~/GitHub` |
 | launchers, notes, `yazi-open-nvim-smart` | unchanged |
 
 `/etc/synthetic.conf` gets `media → Volumes`, so `/media/Archived-Storage/...`

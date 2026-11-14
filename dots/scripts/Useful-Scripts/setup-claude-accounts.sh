@@ -15,10 +15,12 @@
 # a URL and a code. Open that URL in a browser on any other computer.
 #
 # macOS port (better-mac): Claude Code keeps logins in the login Keychain
-# there, not in .credentials.json, so `status` checks the Keychain for
-# account 1 and says so for accounts 2+ instead of reporting "not logged in".
-# chmod --reference (GNU) becomes /usr/bin/stat -f %Lp. better-mac rebuilds ~/.bashrc
-# and sources shell.bash from its post.bash, so the appended lines are harmless.
+# there, not in .credentials.json, so `status` reads each account's Keychain
+# item (see keychain_service) and reports plan and expiry from it the same way.
+# chmod --reference (GNU) becomes /usr/bin/stat -f %Lp. Must stay bash
+# 3.2-safe: the claudeN wrappers run under whatever `bash` is first on PATH.
+# better-mac runs `setup` from modules/scripts.sh; the piercing-dots .bashrc
+# already has ~/.local/bin and the shell.bash line, so nothing is appended.
 
 set -euo pipefail
 
@@ -238,7 +240,7 @@ install_self() {
 
 ensure_bashrc() {
   touch "$BASHRC"
-  if ! grep -qE '^[^#]*PATH=.*\.local/bin' "$BASHRC"; then
+  if ! grep -qE '^[^#]*\.local/bin' "$BASHRC"; then
     cat >> "$BASHRC" <<'EOF'
 
 # Local user binaries (Claude Code and the account commands live here).
@@ -255,45 +257,65 @@ EOF
   fi
 }
 
-# keychain_line <account>: login state on macOS, where credentials live in
-# the Keychain. Account 1 uses the default "Claude Code-credentials" item;
-# other accounts' item names are derived from their config dir, so they
-# can't be checked from here.
-keychain_line() {
-  local which="$1"
-  if [[ "$which" == 1 ]]; then
-    if security find-generic-password -s "Claude Code-credentials" >/dev/null 2>&1; then
-      printf 'logged in (macOS Keychain)\n'
-    else
-      printf 'not logged in\n'
-    fi
-  else
-    printf 'login is kept in the macOS Keychain; run claude%s and check /status\n' "$which"
+# keychain_service <account>: the Keychain item Claude Code keeps a login in
+# on macOS. Account 1 (no CLAUDE_CONFIG_DIR) is "Claude Code-credentials";
+# any other config dir adds "-" and the first 8 hex digits of the SHA-256 of
+# the CLAUDE_CONFIG_DIR string, which run_account sets to account_dir N.
+keychain_service() {
+  if [[ "$1" == 1 ]]; then
+    printf 'Claude Code-credentials\n'
+    return
+  fi
+  local sum
+  sum="$(printf '%s' "$(account_dir "$1")" | shasum -a 256 | cut -c1-8)"
+  printf 'Claude Code-credentials-%s\n' "$sum"
+}
+
+# read_creds <file> <account>: the login JSON, from the file if there is one,
+# else (macOS) from the Keychain. Kept in a variable, never written to disk.
+read_creds() {
+  if [[ -f "$1" ]]; then
+    cat "$1"
+  elif [[ "$(uname -s)" == Darwin ]]; then
+    security find-generic-password -s "$(keychain_service "$2")" -w 2>/dev/null || true
   fi
 }
 
+# text_string / text_number KEY TEXT: json_string and json_number on a string
+text_string() {
+  printf '%s\n' "$2" | grep -o "\"${1}\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" 2>/dev/null \
+    | head -1 \
+    | sed -E 's/.*:[[:space:]]*"([^"]*)".*/\1/' \
+    || true
+}
+
+text_number() {
+  printf '%s\n' "$2" | grep -o "\"${1}\"[[:space:]]*:[[:space:]]*[0-9][0-9]*" 2>/dev/null \
+    | head -1 \
+    | sed -E 's/.*:[[:space:]]*([0-9]+).*/\1/' \
+    || true
+}
+
 auth_line() {
-  local creds="$1"
+  local file="$1"
   local profile="$2"
   local which="${3:-1}"
-  if [[ ! -f "$creds" ]]; then
-    if [[ "$(uname -s)" == Darwin ]]; then
-      keychain_line "$which"
-    else
-      printf 'not logged in\n'
-    fi
+  local creds
+  creds="$(read_creds "$file" "$which")"
+  if [[ -z "$creds" ]]; then
+    printf 'not logged in\n'
     return
   fi
   local token plan access refresh now line email
-  token="$(json_string accessToken "$creds")"
+  token="$(text_string accessToken "$creds")"
   if [[ -z "$token" ]]; then
-    printf 'credentials file has no Claude login\n'
+    printf 'credentials have no Claude login\n'
     return
   fi
-  plan="$(json_string subscriptionType "$creds")"
+  plan="$(text_string subscriptionType "$creds")"
   [[ -n "$plan" ]] || plan="unknown plan"
-  access="$(json_number expiresAt "$creds")"
-  refresh="$(json_number refreshTokenExpiresAt "$creds")"
+  access="$(text_number expiresAt "$creds")"
+  refresh="$(text_number refreshTokenExpiresAt "$creds")"
   now="$(( $(date +%s) * 1000 ))"
   if [[ -n "$refresh" && "$now" -ge "$refresh" ]]; then
     line="logged out (refresh token expired)"
@@ -311,7 +333,7 @@ auth_line() {
 }
 
 print_status() {
-  printf 'account 1 (claude / claude1): %s\n' "$(auth_line "${SHARED}/.credentials.json" "${HOME}/.claude.json")"
+  printf 'account 1 (claude / claude1): %s\n' "$(auth_line "${SHARED}/.credentials.json" "${HOME}/.claude.json" 1)"
   local n dir
   for n in "${EXTRA_ACCOUNTS[@]}"; do
     dir="$(account_dir "$n")"

@@ -13,9 +13,6 @@ if [[ ${iatest:-0} -gt 0 ]]; then
     fi
 fi
 
-# setup-claude-accounts.sh appends this to ~/.bashrc, which better-mac rebuilds
-[ -f "$HOME/.config/claude/shell.bash" ] && . "$HOME/.config/claude/shell.bash"
-
 # Use Homebrew's GNU grep instead of the pinned /usr/bin/grep (BSD)
 alias grep='grep --color=auto'
 
