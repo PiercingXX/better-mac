@@ -115,14 +115,47 @@ route_events() {
 
 last="$(snapshot_state)"
 
+# One route monitor at a time. The old loop read from `< <(route_events)` and
+# restarted whenever `read -t` timed out; under Apple's /bin/bash 3.2 (the bash
+# launchd finds at login) a timeout returns 1, the same as EOF, so the loop
+# restarted every POLL_INTERVAL and each restart left the previous
+# route/awk pipeline running: about 3 leaked processes every 35 s, until the
+# per-user process limit was hit and nothing could fork. Now the monitor runs
+# in a background job whose pid we keep: a timeout only re-checks, and the
+# monitor is restarted (old one killed first) only when it has really exited.
+FIFO="$(mktemp -u "${TMPDIR:-/tmp}/network-notify.XXXXXX")"
+mkfifo "$FIFO" || exit 1
+mon_pid=""
+
+stop_monitor() {
+    exec 3<&- 2>/dev/null
+    if [ -n "$mon_pid" ]; then
+        pkill -P "$mon_pid" 2>/dev/null
+        kill "$mon_pid" 2>/dev/null
+        wait "$mon_pid" 2>/dev/null
+        mon_pid=""
+    fi
+}
+trap 'stop_monitor; rm -f "$FIFO"' EXIT
+trap 'exit 0' INT TERM HUP
+
 while true; do
-    # route monitor prints a block on every routing change; read -t keeps a
-    # slow periodic re-check in case the monitor stream stalls.
-    while IFS= read -r -t "$POLL_INTERVAL" _ || [ $? -gt 128 ]; do
-        # One change prints a burst of messages (and DHCP lags the route);
-        # let it settle before re-reading
-        while IFS= read -r -t 1 _; do :; done
-        check_network
-    done < <(route_events)
+    route_events > "$FIFO" &
+    mon_pid=$!
+    exec 3< "$FIFO"
+    while true; do
+        if IFS= read -r -t "$POLL_INTERVAL" _ <&3; then
+            # One change prints a burst of messages (and DHCP lags the route);
+            # let it settle before re-reading
+            while IFS= read -r -t 1 _ <&3; do :; done
+            check_network
+        else
+            # Timeout (1 on bash 3.2, >128 on newer bash) or EOF: only a dead
+            # monitor ends this loop; a timeout is the slow safety re-check.
+            kill -0 "$mon_pid" 2>/dev/null || break
+            check_network
+        fi
+    done
+    stop_monitor
     sleep 5
 done
